@@ -16,6 +16,7 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 	FrontendURL        string
+	TurnstileSecret    string
 }
 
 var AppConfig *Config
@@ -35,6 +36,7 @@ func Load() {
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:20261/api/v1/auth/google/callback"),
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:20260"),
+		TurnstileSecret:    getEnv("TURNSTILE_SECRET_KEY", ""),
 	}
 
 	if AppConfig.Env == "production" && AppConfig.JWTSecret == "supersecretkey" {

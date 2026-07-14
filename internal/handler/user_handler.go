@@ -23,8 +23,9 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 
 // RegisterRequest defines the expected payload for registration
 type RegisterRequest struct {
-	Email    string `json:"email" form:"email" validate:"required,email"`
-	Password string `json:"password" form:"password" validate:"required,min=6"`
+	Email          string `json:"email" form:"email" validate:"required,email"`
+	Password       string `json:"password" form:"password" validate:"required,min=6"`
+	TurnstileToken string `json:"turnstile_token" validate:"required"`
 }
 
 // LoginRequest defines the expected payload for login
@@ -42,6 +43,10 @@ func (h *UserHandler) Register(c fiber.Ctx) error {
 
 	if errors := utils.ValidateStruct(req); errors != nil {
 		return response.JSONValidationError(c, errors)
+	}
+
+	if err := utils.VerifyTurnstile(req.TurnstileToken); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Gagal memverifikasi captcha", "INVALID_CAPTCHA")
 	}
 
 	user, err := h.userService.RegisterUser(req.Email, req.Password)
