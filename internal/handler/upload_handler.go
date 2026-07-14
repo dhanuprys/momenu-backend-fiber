@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -44,7 +45,14 @@ func (h *UploadHandler) Upload(c fiber.Ctx) error {
 		return response.JSONError(c, fiber.StatusBadRequest, "Invalid content type", "INVALID_PAYLOAD")
 	}
 
-	reader := multipart.NewReader(c.Request().BodyStream(), params["boundary"])
+	var bodyReader io.Reader
+	if c.Request().BodyStream() != nil {
+		bodyReader = c.Request().BodyStream()
+	} else {
+		bodyReader = bytes.NewReader(c.Request().Body())
+	}
+	
+	reader := multipart.NewReader(bodyReader, params["boundary"])
 
 	var projectIDStr, mediaType string
 
@@ -145,7 +153,14 @@ func (h *UploadHandler) AdminUpload(c fiber.Ctx) error {
 		return response.JSONError(c, fiber.StatusBadRequest, "Invalid content type", "INVALID_PAYLOAD")
 	}
 
-	reader := multipart.NewReader(c.Request().BodyStream(), params["boundary"])
+	var bodyReader io.Reader
+	if c.Request().BodyStream() != nil {
+		bodyReader = c.Request().BodyStream()
+	} else {
+		bodyReader = bytes.NewReader(c.Request().Body())
+	}
+	
+	reader := multipart.NewReader(bodyReader, params["boundary"])
 	var mediaType string
 
 	for {
