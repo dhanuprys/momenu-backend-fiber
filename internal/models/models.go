@@ -253,6 +253,7 @@ type Project struct {
 	TextOverrides    []TextOverride  `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"text_overrides"`
 	StyleOverrides   []StyleOverride `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"style_overrides"`
 	ProjectVisits    []ProjectVisit  `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"project_visits"`
+	DiskQuotaBytes   int64          `gorm:"default:104857600" json:"disk_quota_bytes"` // default 100MB
 	UpdateCount      uint           `gorm:"default:0" json:"update_count"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
@@ -398,4 +399,22 @@ type ProjectVisit struct {
 	DeviceType string         `json:"device_type"`
 	IPAddress  string         `json:"ip_address"`
 	CreatedAt time.Time      `gorm:"index" json:"created_at"`
+}
+
+// FileRecord represents a file uploaded by a user and stored on disk.
+type FileRecord struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	URL           string         `gorm:"uniqueIndex;not null" json:"url"`
+	FilePath      string         `gorm:"not null" json:"file_path"`
+	OriginalName  string         `json:"original_name"`
+	ContentType   string         `json:"content_type"`
+	Size          int64          `gorm:"not null" json:"size"`
+	OptimizedSize *int64         `json:"optimized_size,omitempty"`
+	IsOptimized   bool           `gorm:"default:false" json:"is_optimized"`
+	MediaType     string         `gorm:"not null;index" json:"media_type"`
+	ProjectID     *uuid.UUID     `gorm:"type:uuid;index" json:"project_id,omitempty"`
+	UploadedByID  *uint          `gorm:"index" json:"uploaded_by_id,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 }

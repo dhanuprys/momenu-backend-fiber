@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
+	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/service"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/response"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/storage"
@@ -14,10 +15,20 @@ import (
 
 type MediaHandler struct {
 	mediaService service.MediaService
+	fileRepo     repository.FileRecordRepository
+	quotaSvc     service.DiskQuotaService
 }
 
-func NewMediaHandler(mediaService service.MediaService) *MediaHandler {
-	return &MediaHandler{mediaService: mediaService}
+func NewMediaHandler(
+	mediaService service.MediaService,
+	fileRepo repository.FileRecordRepository,
+	quotaSvc service.DiskQuotaService,
+) *MediaHandler {
+	return &MediaHandler{
+		mediaService: mediaService,
+		fileRepo:     fileRepo,
+		quotaSvc:     quotaSvc,
+	}
 }
 
 type MediaCreateRequest struct {
@@ -74,15 +85,38 @@ func (h *MediaHandler) Create(c fiber.Ctx) error {
 			return response.JSONError(c, fiber.StatusBadRequest, "image file is required", "INVALID_PAYLOAD")
 		}
 
+		// Check Quota
+		if err := h.quotaSvc.CheckQuota(project.ID, file.Size); err != nil {
+			return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "QUOTA_EXCEEDED")
+		}
+
 		// Save file locally using storage
-		savedUrl, err := storage.SaveFile(file, "media", "image")
+		fileInfo, err := storage.SaveFile(file, "media", "image")
 		if err != nil {
 			if err == storage.ErrFileTooLarge || err == storage.ErrInvalidFileType {
 				return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "BAD_REQUEST")
 			}
 			return response.JSONError(c, fiber.StatusInternalServerError, "failed to save image", "INTERNAL_SERVER_ERROR")
 		}
-		url = savedUrl
+		url = fileInfo.URL
+
+		// Create FileRecord
+		userID := project.UserID
+		record := &models.FileRecord{
+			URL:          fileInfo.URL,
+			FilePath:     fileInfo.FilePath,
+			OriginalName: fileInfo.OriginalName,
+			ContentType:  fileInfo.ContentType,
+			Size:         fileInfo.Size,
+			MediaType:    fileInfo.MediaType,
+			ProjectID:    &project.ID,
+			UploadedByID: &userID,
+		}
+
+		if err := h.fileRepo.Create(record); err != nil {
+			_ = storage.DeleteFile(fileInfo.URL)
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to save file metadata", "INTERNAL_SERVER_ERROR")
+		}
 	}
 
 	media, err := h.mediaService.Create(project.ID, project.ThemeID, bucket, url, order)
@@ -153,6 +187,9 @@ func (h *MediaHandler) Delete(c fiber.Ctx) error {
 
 	// Clean up file if it's a local upload
 	if urlToDelete != "" {
+		if fileRecord, err := h.fileRepo.GetByURL(urlToDelete); err == nil && fileRecord != nil {
+			_ = h.fileRepo.Delete(fileRecord.ID) // Soft delete from DB
+		}
 		_ = storage.DeleteFile(urlToDelete)
 	}
 

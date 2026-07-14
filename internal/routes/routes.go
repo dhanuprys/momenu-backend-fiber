@@ -35,9 +35,13 @@ func SetupRoutes(app *fiber.App) {
 	giftRegistryService := service.NewGiftRegistryService(giftRegistryRepo)
 	giftRegistryHandler := handler.NewGiftRegistryHandler(giftRegistryService)
 
+	fileRepo := repository.NewFileRecordRepository(database.DB)
+	quotaSvc := service.NewDiskQuotaService(fileRepo, projectRepo)
+	diskHandler := handler.NewDiskHandler(fileRepo, projectRepo, quotaSvc, database.DB)
+
 	mediaRepo := repository.NewMediaRepository(database.DB)
 	mediaService := service.NewMediaService(mediaRepo, themeRepo)
-	mediaHandler := handler.NewMediaHandler(mediaService)
+	mediaHandler := handler.NewMediaHandler(mediaService, fileRepo, quotaSvc)
 
 	dressCodeRepo := repository.NewDressCodeRepository(database.DB)
 	dressCodeService := service.NewDressCodeService(dressCodeRepo)
@@ -67,7 +71,7 @@ func SetupRoutes(app *fiber.App) {
 	musicService := service.NewMusicService(musicRepo)
 	musicHandler := handler.NewMusicHandler(musicService)
 
-	uploadHandler := handler.NewUploadHandler(projectRepo)
+	uploadHandler := handler.NewUploadHandler(projectRepo, fileRepo, quotaSvc)
 
 	analyticsRepo := repository.NewAnalyticsRepository(database.DB)
 	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo)
@@ -96,6 +100,8 @@ func SetupRoutes(app *fiber.App) {
 
 	// File Upload (Authenticated)
 	api.Post("/upload", middleware.AuthRequired, uploadHandler.Upload)
+
+
 
 	// Event Type Schema
 	api.Get("/event-types/:type/schema", func(c fiber.Ctx) error {
@@ -172,6 +178,9 @@ func SetupRoutes(app *fiber.App) {
 	project.Get("/style-overrides", styleOverrideHandler.List)
 	project.Put("/style-overrides", styleOverrideHandler.Upsert)
 	project.Delete("/style-overrides/:slotKey", styleOverrideHandler.Delete)
+	
+	// Project Disk Usage
+	project.Get("/disk-usage", diskHandler.GetProjectDiskUsage)
 
 	// Owner: RSVPs
 	rsvpsGroup := project.Group("/rsvps")
@@ -229,5 +238,7 @@ func SetupRoutes(app *fiber.App) {
 	admin.Get("/themes", adminHandler.ListThemes)
 	admin.Put("/themes/:id", adminHandler.UpdateTheme)
 	admin.Post("/upload", uploadHandler.AdminUpload)
+	admin.Get("/disk-stats", diskHandler.GetGlobalStats)
+	admin.Patch("/projects/:projectId/disk-quota", diskHandler.UpdateProjectDiskQuota)
 	admin.Get("/system/resources", systemHandler.GetResources)
 }

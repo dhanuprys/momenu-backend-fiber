@@ -24,7 +24,7 @@ FROM alpine:latest
 LABEL maintainer="Momenu Backend"
 
 # Install necessary packages (ca-certificates for HTTPS, tzdata for timezones)
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata libwebp-tools
 
 WORKDIR /app
 

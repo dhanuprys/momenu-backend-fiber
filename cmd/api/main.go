@@ -51,6 +51,7 @@ func main() {
 		&models.ProjectVisit{},
 		&models.TextOverride{},
 		&models.StyleOverride{},
+		&models.FileRecord{},
 	)
 	if err != nil {
 		logger.Fatal("Failed to run database migrations: " + err.Error())
@@ -69,8 +70,9 @@ func main() {
 
 	// Initialize Fiber App
 	app := fiber.New(fiber.Config{
-		AppName:   "Momenu Backend API",
-		BodyLimit: 50 * 1024 * 1024, // 50 MB
+		AppName:           "Momenu Backend API",
+		BodyLimit:         50 * 1024 * 1024, // 50 MB
+		StreamRequestBody: true,
 	})
 
 	// Global Middlewares

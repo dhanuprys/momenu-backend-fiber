@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 
+	"github.com/dhanuprys/momenu-backend-fiber/internal/config"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/response"
@@ -75,10 +76,11 @@ func (s *projectService) CreateProject(userID uint, title string, themeID string
 		Title:     title,
 		ThemeID:   themeID,
 		EventType: theme.EventType, // Inherit from Theme
-		Status:    models.ProjectStatusDraft,
-		Slug:      utils.GenerateSlug(title),
-		MusicID:   musicID,
-		Payload:   datatypes.JSON(payload),
+		Status:         models.ProjectStatusDraft,
+		Slug:           utils.GenerateSlug(title),
+		MusicID:        musicID,
+		Payload:        datatypes.JSON(payload),
+		DiskQuotaBytes: config.AppConfig.DefaultProjectDiskQuotaMB * 1024 * 1024,
 	}
 
 	// The repository saves it. GORM will autogenerate the ID.

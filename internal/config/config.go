@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -16,7 +17,8 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 	FrontendURL        string
-	TurnstileSecret    string
+	TurnstileSecret           string
+	DefaultProjectDiskQuotaMB int64
 }
 
 var AppConfig *Config
@@ -34,9 +36,10 @@ func Load() {
 		JWTSecret:          getEnv("JWT_SECRET", "supersecretkey"),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:20261/api/v1/auth/google/callback"),
-		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:20260"),
-		TurnstileSecret:    getEnv("TURNSTILE_SECRET_KEY", ""),
+		GoogleRedirectURL:         getEnv("GOOGLE_REDIRECT_URL", "http://localhost:20261/api/v1/auth/google/callback"),
+		FrontendURL:               getEnv("FRONTEND_URL", "http://localhost:20260"),
+		TurnstileSecret:           getEnv("TURNSTILE_SECRET_KEY", ""),
+		DefaultProjectDiskQuotaMB: getEnvAsInt64("DEFAULT_PROJECT_DISK_QUOTA_MB", 100),
 	}
 
 	if AppConfig.Env == "production" && AppConfig.JWTSecret == "supersecretkey" {
@@ -47,6 +50,15 @@ func Load() {
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
+	}
+	return fallback
+}
+
+func getEnvAsInt64(key string, fallback int64) int64 {
+	if valueStr, exists := os.LookupEnv(key); exists {
+		if value, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+			return value
+		}
 	}
 	return fallback
 }

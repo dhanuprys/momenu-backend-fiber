@@ -1,7 +1,13 @@
 package handler
 
 import (
+	"io"
+	"mime"
+	"mime/multipart"
+
+	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
+	"github.com/dhanuprys/momenu-backend-fiber/internal/service"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/response"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/storage"
 	"github.com/gofiber/fiber/v3"
@@ -10,10 +16,20 @@ import (
 
 type UploadHandler struct {
 	projectRepo repository.ProjectRepository
+	fileRepo    repository.FileRecordRepository
+	quotaSvc    service.DiskQuotaService
 }
 
-func NewUploadHandler(projectRepo repository.ProjectRepository) *UploadHandler {
-	return &UploadHandler{projectRepo: projectRepo}
+func NewUploadHandler(
+	projectRepo repository.ProjectRepository,
+	fileRepo repository.FileRecordRepository,
+	quotaSvc service.DiskQuotaService,
+) *UploadHandler {
+	return &UploadHandler{
+		projectRepo: projectRepo,
+		fileRepo:    fileRepo,
+		quotaSvc:    quotaSvc,
+	}
 }
 
 func (h *UploadHandler) Upload(c fiber.Ctx) error {
@@ -22,75 +38,171 @@ func (h *UploadHandler) Upload(c fiber.Ctx) error {
 		return response.JSONError(c, fiber.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
 	}
 
-	projectIDStr := c.FormValue("project_id")
-	
-	if projectIDStr == "" {
-		return response.JSONError(c, fiber.StatusBadRequest, "project_id is required", "INVALID_PAYLOAD")
+	contentType := string(c.Request().Header.ContentType())
+	_, params, err := mime.ParseMediaType(contentType)
+	if err != nil || params["boundary"] == "" {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid content type", "INVALID_PAYLOAD")
 	}
 
-	projectID, err := uuid.Parse(projectIDStr)
-	if err != nil {
-		return response.JSONError(c, fiber.StatusBadRequest, "Invalid project_id format", "INVALID_PAYLOAD")
-	}
+	reader := multipart.NewReader(c.Request().BodyStream(), params["boundary"])
 
-	project, err := h.projectRepo.GetProjectByID(projectID)
-	if err != nil || project == nil || project.UserID != userID {
-		return response.JSONError(c, fiber.StatusForbidden, "Access denied. Project not found or you don't have permission.", "FORBIDDEN")
-	}
+	var projectIDStr, mediaType string
 
-	// Parse multipart form
-	file, err := c.FormFile("file")
-	if err != nil {
-		return response.JSONError(c, fiber.StatusBadRequest, "File is required", "INVALID_PAYLOAD")
-	}
-
-	mediaType := c.FormValue("type", "image")
-	if mediaType != "image" && mediaType != "video" && mediaType != "audio" {
-		return response.JSONError(c, fiber.StatusBadRequest, "Invalid type. Must be 'image', 'video' or 'audio'", "INVALID_PAYLOAD")
-	}
-
-	// Save file using storage service
-	publicURL, err := storage.SaveFile(file, "media", mediaType)
-	if err != nil {
-		if err == storage.ErrFileTooLarge || err == storage.ErrInvalidFileType {
-			return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "BAD_REQUEST")
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
 		}
-		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to upload file", "INTERNAL_SERVER_ERROR")
+		if err != nil {
+			return response.JSONError(c, fiber.StatusBadRequest, "Failed to parse form", "INVALID_PAYLOAD")
+		}
+
+		if part.FileName() == "" {
+			// Form field
+			b, _ := io.ReadAll(part)
+			val := string(b)
+			if part.FormName() == "project_id" {
+				projectIDStr = val
+			} else if part.FormName() == "type" {
+				mediaType = val
+			}
+			continue
+		}
+
+		// File part reached
+		if projectIDStr == "" {
+			return response.JSONError(c, fiber.StatusBadRequest, "project_id must precede file part", "INVALID_PAYLOAD")
+		}
+		if mediaType == "" {
+			mediaType = "image"
+		}
+
+		projectID, err := uuid.Parse(projectIDStr)
+		if err != nil {
+			return response.JSONError(c, fiber.StatusBadRequest, "Invalid project_id format", "INVALID_PAYLOAD")
+		}
+
+		project, err := h.projectRepo.GetProjectByID(projectID)
+		if err != nil || project == nil || project.UserID != userID {
+			return response.JSONError(c, fiber.StatusForbidden, "Access denied. Project not found or you don't have permission.", "FORBIDDEN")
+		}
+
+		quotaInfo, err := h.quotaSvc.GetQuotaInfo(projectID)
+		if err != nil {
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to get quota", "INTERNAL_SERVER_ERROR")
+		}
+
+		var maxAllowedSize int64 = storage.MaxImageSize
+		if mediaType == "video" {
+			maxAllowedSize = storage.MaxVideoSize
+		}
+		if quotaInfo.RemainingBytes < maxAllowedSize {
+			maxAllowedSize = quotaInfo.RemainingBytes
+		}
+		if maxAllowedSize <= 0 {
+			return response.JSONError(c, fiber.StatusBadRequest, "Quota exceeded", "QUOTA_EXCEEDED")
+		}
+
+		fileInfo, err := storage.StreamFile(part, part.FileName(), "media", mediaType, maxAllowedSize)
+		if err != nil {
+			if err == storage.ErrFileTooLarge {
+				return response.JSONError(c, fiber.StatusBadRequest, "File too large or quota exceeded", "QUOTA_EXCEEDED")
+			}
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to upload file", "INTERNAL_SERVER_ERROR")
+		}
+
+		record := &models.FileRecord{
+			URL:          fileInfo.URL,
+			FilePath:     fileInfo.FilePath,
+			OriginalName: fileInfo.OriginalName,
+			ContentType:  fileInfo.ContentType,
+			Size:         fileInfo.Size,
+			MediaType:    fileInfo.MediaType,
+			ProjectID:    &projectID,
+			UploadedByID: &userID,
+		}
+
+		if err := h.fileRepo.Create(record); err != nil {
+			_ = storage.DeleteFile(fileInfo.URL)
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to save file metadata", "INTERNAL_SERVER_ERROR")
+		}
+
+		return response.JSONSuccess(c, fiber.StatusCreated, "File uploaded successfully", fiber.Map{
+			"url":          fileInfo.URL,
+			"filename":     fileInfo.OriginalName,
+			"size":         fileInfo.Size,
+			"content_type": fileInfo.ContentType,
+		}, nil)
 	}
 
-	return response.JSONSuccess(c, fiber.StatusCreated, "File uploaded successfully", fiber.Map{
-		"url":           publicURL,
-		"filename":      file.Filename,
-		"size":          file.Size,
-		"content_type":  file.Header.Get("Content-Type"),
-	}, nil)
+	return response.JSONError(c, fiber.StatusBadRequest, "No file found", "INVALID_PAYLOAD")
 }
 
 func (h *UploadHandler) AdminUpload(c fiber.Ctx) error {
-	// Parse multipart form
-	file, err := c.FormFile("file")
-	if err != nil {
-		return response.JSONError(c, fiber.StatusBadRequest, "File is required", "INVALID_PAYLOAD")
+	contentType := string(c.Request().Header.ContentType())
+	_, params, err := mime.ParseMediaType(contentType)
+	if err != nil || params["boundary"] == "" {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid content type", "INVALID_PAYLOAD")
 	}
 
-	mediaType := c.FormValue("type", "audio")
-	if mediaType != "image" && mediaType != "video" && mediaType != "audio" {
-		return response.JSONError(c, fiber.StatusBadRequest, "Invalid type. Must be 'image', 'video' or 'audio'", "INVALID_PAYLOAD")
-	}
+	reader := multipart.NewReader(c.Request().BodyStream(), params["boundary"])
+	var mediaType string
 
-	// Save file using storage service
-	publicURL, err := storage.SaveFile(file, "media", mediaType)
-	if err != nil {
-		if err == storage.ErrFileTooLarge || err == storage.ErrInvalidFileType {
-			return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "BAD_REQUEST")
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
 		}
-		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to upload file", "INTERNAL_SERVER_ERROR")
+		if err != nil {
+			return response.JSONError(c, fiber.StatusBadRequest, "Failed to parse form", "INVALID_PAYLOAD")
+		}
+
+		if part.FileName() == "" {
+			b, _ := io.ReadAll(part)
+			if part.FormName() == "type" {
+				mediaType = string(b)
+			}
+			continue
+		}
+
+		if mediaType == "" {
+			mediaType = "audio" // Default for admin
+		}
+
+		var maxAllowedSize int64 = storage.MaxImageSize
+		if mediaType == "video" {
+			maxAllowedSize = storage.MaxVideoSize
+		}
+
+		fileInfo, err := storage.StreamFile(part, part.FileName(), "media", mediaType, maxAllowedSize)
+		if err != nil {
+			if err == storage.ErrFileTooLarge {
+				return response.JSONError(c, fiber.StatusBadRequest, "File too large", "BAD_REQUEST")
+			}
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to upload file", "INTERNAL_SERVER_ERROR")
+		}
+
+		record := &models.FileRecord{
+			URL:          fileInfo.URL,
+			FilePath:     fileInfo.FilePath,
+			OriginalName: fileInfo.OriginalName,
+			ContentType:  fileInfo.ContentType,
+			Size:         fileInfo.Size,
+			MediaType:    fileInfo.MediaType,
+		}
+
+		if err := h.fileRepo.Create(record); err != nil {
+			_ = storage.DeleteFile(fileInfo.URL)
+			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to save file metadata", "INTERNAL_SERVER_ERROR")
+		}
+
+		return response.JSONSuccess(c, fiber.StatusCreated, "File uploaded successfully", fiber.Map{
+			"url":          fileInfo.URL,
+			"filename":     fileInfo.OriginalName,
+			"size":         fileInfo.Size,
+			"content_type": fileInfo.ContentType,
+		}, nil)
 	}
 
-	return response.JSONSuccess(c, fiber.StatusCreated, "File uploaded successfully", fiber.Map{
-		"url":           publicURL,
-		"filename":      file.Filename,
-		"size":          file.Size,
-		"content_type":  file.Header.Get("Content-Type"),
-	}, nil)
+	return response.JSONError(c, fiber.StatusBadRequest, "No file found", "INVALID_PAYLOAD")
 }
