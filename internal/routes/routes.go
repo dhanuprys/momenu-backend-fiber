@@ -58,6 +58,7 @@ func SetupRoutes(app *fiber.App) {
 	invitationService := service.NewInvitationService(projectRepo)
 	invitationHandler := handler.NewInvitationHandler(invitationService, rsvpService)
 	adminHandler := handler.NewAdminHandler()
+	systemHandler := handler.NewSystemHandler()
 
 	textOverrideHandler := handler.NewTextOverrideHandler()
 	styleOverrideHandler := handler.NewStyleOverrideHandler()
@@ -228,4 +229,5 @@ func SetupRoutes(app *fiber.App) {
 	admin.Get("/themes", adminHandler.ListThemes)
 	admin.Put("/themes/:id", adminHandler.UpdateTheme)
 	admin.Post("/upload", uploadHandler.AdminUpload)
+	admin.Get("/system/resources", systemHandler.GetResources)
 }

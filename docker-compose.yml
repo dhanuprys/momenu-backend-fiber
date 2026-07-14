@@ -1,0 +1,27 @@
+services:
+  api:
+    image: ghcr.io/dhanuprys/momenu-api
+    container_name: momenu-api
+    restart: unless-stopped
+    env_file:
+      - .env.backend
+    ports:
+      # Exposes the container's SERVER_PORT (3000) to host port 20261
+      - "9050:${SERVER_PORT:-3000}"
+    volumes:
+      # Mount the local uploads directory to persist uploaded files
+      - ./uploads:/app/uploads
+    depends_on:
+      - db
+      
+  db:
+    image: postgres:17-alpine
+    container_name: momenu-db
+    restart: unless-stopped
+    env_file:
+      - .env.db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
