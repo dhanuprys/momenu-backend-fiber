@@ -19,8 +19,8 @@ func GenerateSlug(title string) string {
 	// Trim trailing/leading hyphens
 	slug = strings.Trim(slug, "-")
 	
-	// Generate random suffix
-	b := make([]byte, 3)
+	// Generate random suffix (10 characters)
+	b := make([]byte, 5)
 	rand.Read(b)
 	suffix := hex.EncodeToString(b)
 	

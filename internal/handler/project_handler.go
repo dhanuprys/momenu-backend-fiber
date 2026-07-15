@@ -27,7 +27,7 @@ type CreateProjectRequest struct {
 
 type UpdateProjectRequest struct {
 	Title            string          `json:"title"`
-	Slug             string          `json:"slug" validate:"required,min=3,max=50"`
+	Slug             string          `json:"slug" validate:"required,min=10,max=50"`
 	Payload          json.RawMessage `json:"payload"`
 	SharingThumbnail string          `json:"sharing_thumbnail"`
 	MusicID          *uint           `json:"music_id"`

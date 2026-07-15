@@ -142,10 +142,10 @@ func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug s
 	}
 
 	// Validate slug format
-	if !regexp.MustCompile(`^[a-z0-9-]+$`).MatchString(slug) {
+	if !regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`).MatchString(slug) {
 		return nil, []response.ValidationError{{
 			Field:   "slug",
-			Message: "Slug can only contain lowercase letters, numbers, and hyphens",
+			Message: "Slug can only contain lowercase letters and numbers, separated by hyphens",
 		}}, errors.New("validation failed")
 	}
 
