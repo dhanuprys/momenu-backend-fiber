@@ -237,7 +237,7 @@ type Project struct {
 	ThemeID          string         `gorm:"not null" json:"theme_id"` // Matches hardcoded theme registry
 	Theme            Theme          `gorm:"foreignKey:ThemeID" json:"theme,omitempty"`
 	MusicID          *uint          `json:"music_id"`
-	Music            Music          `gorm:"foreignKey:MusicID" json:"music,omitempty"`
+	Music            Music          `gorm:"foreignKey:MusicID;constraint:OnDelete:SET NULL;" json:"music,omitempty"`
 	EventType        EventType      `gorm:"not null" json:"event_type"` // strongly-typed event type
 	Status           ProjectStatus  `gorm:"default:'draft'" json:"status"`
 	Slug             string         `gorm:"uniqueIndex;not null" json:"slug"`

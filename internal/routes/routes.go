@@ -297,6 +297,7 @@ func registerAdminRoutes(api fiber.Router, d *deps) {
 	admin.Put("/music/categories/:id", d.admin.UpdateMusicCategory)
 	admin.Delete("/music/categories/:id", d.admin.DeleteMusicCategory)
 	admin.Post("/music", d.admin.CreateMusic)
+	admin.Put("/music/:id", d.admin.UpdateMusic)
 	admin.Delete("/music/:id", d.admin.DeleteMusic)
 
 	// Theme Management

@@ -5,6 +5,7 @@ import (
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/database"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/response"
+	"github.com/dhanuprys/momenu-backend-fiber/pkg/storage"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/utils"
 	"github.com/gofiber/fiber/v3"
 )
@@ -167,6 +168,16 @@ func (h *AdminHandler) UpdateMusicCategory(c fiber.Ctx) error {
 
 func (h *AdminHandler) DeleteMusicCategory(c fiber.Ctx) error {
 	id := c.Params("id")
+
+	var count int64
+	if err := database.DB.Model(&models.Music{}).Where("category_id = ?", id).Count(&count).Error; err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to check music category usage", "INTERNAL_ERROR")
+	}
+	
+	if count > 0 {
+		return response.JSONError(c, fiber.StatusConflict, "Cannot delete this category because it contains music tracks. Please move or delete them first.", "CATEGORY_IN_USE")
+	}
+
 	if err := database.DB.Delete(&models.MusicCategory{}, "id = ?", id).Error; err != nil {
 		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to delete music category", "INTERNAL_ERROR")
 	}
@@ -186,8 +197,59 @@ func (h *AdminHandler) CreateMusic(c fiber.Ctx) error {
 	return response.JSONSuccess(c, fiber.StatusCreated, "Music created successfully", req, nil)
 }
 
+func (h *AdminHandler) UpdateMusic(c fiber.Ctx) error {
+	id := c.Params("id")
+	var req models.Music
+	if err := c.Bind().JSON(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request body", "INVALID_REQUEST")
+	}
+
+	var music models.Music
+	if err := database.DB.First(&music, id).Error; err != nil {
+		return response.JSONError(c, fiber.StatusNotFound, "Music not found", "NOT_FOUND")
+	}
+
+	music.Title = req.Title
+	music.Artist = req.Artist
+	music.CategoryID = req.CategoryID
+	music.DurationSeconds = req.DurationSeconds
+	music.Order = req.Order
+	
+	if req.FilePath != "" && req.FilePath != music.FilePath {
+		// Cleanup old audio file
+		_ = storage.DeleteFile(music.FilePath)
+		music.FilePath = req.FilePath
+	}
+	if req.CoverImage != "" && req.CoverImage != music.CoverImage {
+		// Cleanup old cover image
+		_ = storage.DeleteFile(music.CoverImage)
+		music.CoverImage = req.CoverImage
+	}
+
+	if err := database.DB.Save(&music).Error; err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to update music", "INTERNAL_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "Music updated successfully", music, nil)
+}
+
 func (h *AdminHandler) DeleteMusic(c fiber.Ctx) error {
 	id := c.Params("id")
+	
+	var music models.Music
+	if err := database.DB.First(&music, id).Error; err == nil {
+		// Cleanup old audio file and cover image
+		_ = storage.DeleteFile(music.FilePath)
+		if music.CoverImage != "" {
+			_ = storage.DeleteFile(music.CoverImage)
+		}
+	}
+
+	// Clear music_id from projects first to avoid foreign key constraint violations
+	if err := database.DB.Model(&models.Project{}).Where("music_id = ?", id).Update("music_id", nil).Error; err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to clear music references in projects", "INTERNAL_ERROR")
+	}
+
 	if err := database.DB.Delete(&models.Music{}, "id = ?", id).Error; err != nil {
 		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to delete music", "INTERNAL_ERROR")
 	}
