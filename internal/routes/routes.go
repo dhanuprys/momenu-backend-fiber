@@ -136,6 +136,7 @@ func registerAuthRoutes(api fiber.Router, d *deps) {
 	auth.Get("/google/callback", d.user.GoogleCallback)
 	auth.Post("/refresh", d.user.RefreshToken)
 	auth.Get("/me", middleware.AuthRequired, d.user.Me)
+	auth.Put("/me", middleware.AuthRequired, d.user.UpdateProfile)
 }
 
 // ─── Public Routes (no auth) ────────────────────────────────────────────────

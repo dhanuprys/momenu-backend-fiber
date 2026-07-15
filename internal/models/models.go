@@ -179,6 +179,7 @@ var EventTypeFieldSchemas = map[EventType][]FieldGroup{
 // User - Identity & Authority
 type User struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
+	Name      string         `json:"name"`
 	Email     string         `gorm:"uniqueIndex;not null" json:"email"`
 	Password  string         `json:"-"` // Not exposed in JSON
 	GoogleID  *string        `gorm:"uniqueIndex" json:"google_id,omitempty"`

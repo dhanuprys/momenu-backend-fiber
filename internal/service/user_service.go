@@ -13,11 +13,12 @@ import (
 )
 
 type UserService interface {
-	RegisterUser(email, password string) (*models.User, error)
+	RegisterUser(name, email, password string) (string, string, *models.User, error)
 	LoginUser(email, password string) (string, string, *models.User, error)
 	GetUserByID(id uint) (*models.User, error)
 	GoogleLogin(ctx context.Context, code string, oauthConf *oauth2.Config) (string, string, *models.User, error)
 	RefreshToken(refreshToken string) (string, string, *models.User, error)
+	UpdateUserProfile(id uint, name string) (*models.User, error)
 }
 
 type userService struct {
@@ -28,23 +29,24 @@ func NewUserService(repo repository.UserRepository) UserService {
 	return &userService{repo: repo}
 }
 
-func (s *userService) RegisterUser(email, password string) (*models.User, error) {
+func (s *userService) RegisterUser(name, email, password string) (string, string, *models.User, error) {
 	// Check if user exists
 	existingUser, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		return nil, err
+		return "", "", nil, err
 	}
 	if existingUser != nil {
-		return nil, errors.New("email already in use")
+		return "", "", nil, errors.New("email already in use")
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return "", "", nil, err
 	}
 
 	user := &models.User{
+		Name:     name,
 		Email:    email,
 		Password: string(hashedPassword),
 		// IsAdmin and Verified are false by default as per model
@@ -52,10 +54,20 @@ func (s *userService) RegisterUser(email, password string) (*models.User, error)
 
 	err = s.repo.CreateUser(user)
 	if err != nil {
-		return nil, err
+		return "", "", nil, err
 	}
 
-	return user, nil
+	token, err := utils.GenerateToken(user.ID, user.Email, user.IsAdmin, user.Verified)
+	if err != nil {
+		return "", "", nil, err
+	}
+	
+	refreshToken, err := utils.GenerateRefreshToken(user.ID)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	return token, refreshToken, user, nil
 }
 
 func (s *userService) LoginUser(email, password string) (string, string, *models.User, error) {
@@ -112,6 +124,7 @@ func (s *userService) GoogleLogin(ctx context.Context, code string, oauthConf *o
 	var userInfo struct {
 		ID    string `json:"id"`
 		Email string `json:"email"`
+		Name  string `json:"name"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
 		return "", "", nil, errors.New("failed to decode user info: " + err.Error())
@@ -125,6 +138,7 @@ func (s *userService) GoogleLogin(ctx context.Context, code string, oauthConf *o
 	if user == nil {
 		// Create new user
 		user = &models.User{
+			Name:     userInfo.Name,
 			Email:    userInfo.Email,
 			Password: "", // No password for Google users
 			GoogleID: &userInfo.ID,
@@ -134,10 +148,18 @@ func (s *userService) GoogleLogin(ctx context.Context, code string, oauthConf *o
 			return "", "", nil, err
 		}
 	} else {
-		// Update existing user with Google ID if missing
+		// Update existing user with Google ID and Name if missing
+		needsUpdate := false
 		if user.GoogleID == nil || *user.GoogleID != userInfo.ID {
 			user.GoogleID = &userInfo.ID
 			user.Verified = true // Mark as verified since Google confirmed the email
+			needsUpdate = true
+		}
+		if user.Name == "" && userInfo.Name != "" {
+			user.Name = userInfo.Name
+			needsUpdate = true
+		}
+		if needsUpdate {
 			if err := s.repo.UpdateUser(user); err != nil {
 				return "", "", nil, err
 			}
@@ -183,3 +205,21 @@ func (s *userService) RefreshToken(refreshTokenStr string) (string, string, *mod
 
 	return token, newRefreshToken, user, nil
 }
+
+func (s *userService) UpdateUserProfile(id uint, name string) (*models.User, error) {
+	user, err := s.repo.GetUserByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	user.Name = name
+	if err := s.repo.UpdateUser(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+

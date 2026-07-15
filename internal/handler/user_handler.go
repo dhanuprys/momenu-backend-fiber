@@ -21,8 +21,8 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
-// RegisterRequest defines the expected payload for registration
 type RegisterRequest struct {
+	Name           string `json:"name" form:"name" validate:"required"`
 	Email          string `json:"email" form:"email" validate:"required,email"`
 	Password       string `json:"password" form:"password" validate:"required,min=6"`
 	TurnstileToken string `json:"turnstile_token" validate:"required"`
@@ -50,12 +50,16 @@ func (h *UserHandler) Register(c fiber.Ctx) error {
 		return response.JSONError(c, fiber.StatusBadRequest, "Gagal memverifikasi captcha", "INVALID_CAPTCHA")
 	}
 
-	user, err := h.userService.RegisterUser(req.Email, req.Password)
+	token, refreshToken, user, err := h.userService.RegisterUser(req.Name, req.Email, req.Password)
 	if err != nil {
 		return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "REGISTRATION_FAILED")
 	}
 
-	return response.JSONSuccess(c, fiber.StatusCreated, "User registered successfully", user, nil)
+	return response.JSONSuccess(c, fiber.StatusCreated, "User registered successfully", fiber.Map{
+		"token":         token,
+		"refresh_token": refreshToken,
+		"user":          user,
+	}, nil)
 }
 
 // Login handles user authentication
@@ -99,6 +103,36 @@ func (h *UserHandler) Me(c fiber.Ctx) error {
 
 	return response.JSONSuccess(c, fiber.StatusOK, "User profile retrieved", user, nil)
 }
+
+// UpdateProfileRequest defines the expected payload for updating a user profile
+type UpdateProfileRequest struct {
+	Name string `json:"name" validate:"required"`
+}
+
+// UpdateProfile handles updating the current user's profile
+func (h *UserHandler) UpdateProfile(c fiber.Ctx) error {
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return response.JSONError(c, fiber.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+	}
+
+	var req UpdateProfileRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
+	}
+
+	if errors := utils.ValidateStruct(req); errors != nil {
+		return response.JSONValidationError(c, errors)
+	}
+
+	user, err := h.userService.UpdateUserProfile(userID, req.Name)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, err.Error(), "INTERNAL_SERVER_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "User profile updated successfully", user, nil)
+}
+
 
 func (h *UserHandler) getOAuthConfig() *oauth2.Config {
 	return &oauth2.Config{
