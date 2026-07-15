@@ -18,6 +18,7 @@ func NewShareHandler(shareService service.ShareService) *ShareHandler {
 }
 
 type CreateSessionRequest struct {
+	Name      string     `json:"name" validate:"required"`
 	ExpiresAt *time.Time `json:"expires_at"`
 }
 
@@ -33,7 +34,7 @@ func (h *ShareHandler) CreateSession(c fiber.Ctx) error {
 		// Log the error but continue with null expiresAt if body is just not provided
 	}
 
-	session, err := h.shareService.CreateSession(projectID, req.ExpiresAt)
+	session, err := h.shareService.CreateSession(projectID, req.Name, req.ExpiresAt)
 	if err != nil {
 		return response.JSONError(c, fiber.StatusInternalServerError, err.Error(), "CREATE_FAILED")
 	}

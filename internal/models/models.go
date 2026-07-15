@@ -408,6 +408,7 @@ type ProjectVisit struct {
 type ProjectShareSession struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	ProjectID uuid.UUID      `gorm:"type:uuid;index;not null" json:"project_id"`
+	Name      string         `json:"name"`
 	SessionID string         `gorm:"uniqueIndex;not null" json:"session_id"`
 	IsRevoked bool           `gorm:"default:false" json:"is_revoked"`
 	ExpiresAt *time.Time     `json:"expires_at"`

@@ -12,7 +12,7 @@ import (
 )
 
 type ShareService interface {
-	CreateSession(projectID uuid.UUID, expiresAt *time.Time) (*models.ProjectShareSession, error)
+	CreateSession(projectID uuid.UUID, name string, expiresAt *time.Time) (*models.ProjectShareSession, error)
 	ListSessions(projectID uuid.UUID) ([]models.ProjectShareSession, error)
 	RevokeSession(sessionID string) error
 	GetSharedData(sessionID string) (*models.Project, map[string]interface{}, error)
@@ -40,7 +40,7 @@ func generateShortID(length int) string {
 	return hex.EncodeToString(b)
 }
 
-func (s *shareService) CreateSession(projectID uuid.UUID, expiresAt *time.Time) (*models.ProjectShareSession, error) {
+func (s *shareService) CreateSession(projectID uuid.UUID, name string, expiresAt *time.Time) (*models.ProjectShareSession, error) {
 	// Check active session limit
 	sessions, err := s.shareRepo.GetSessionsByProjectID(projectID)
 	if err == nil {
@@ -57,6 +57,7 @@ func (s *shareService) CreateSession(projectID uuid.UUID, expiresAt *time.Time) 
 
 	session := &models.ProjectShareSession{
 		ProjectID: projectID,
+		Name:      name,
 		SessionID: "s_" + generateShortID(10), // e.g. s_1a2b3c4d5e
 		ExpiresAt: expiresAt,
 	}
