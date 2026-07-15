@@ -30,8 +30,9 @@ type RegisterRequest struct {
 
 // LoginRequest defines the expected payload for login
 type LoginRequest struct {
-	Email    string `json:"email" form:"email" validate:"required,email"`
-	Password string `json:"password" form:"password" validate:"required"`
+	Email          string `json:"email" form:"email" validate:"required,email"`
+	Password       string `json:"password" form:"password" validate:"required"`
+	TurnstileToken string `json:"turnstile_token" validate:"required"`
 }
 
 // Register handles user registration
@@ -66,6 +67,10 @@ func (h *UserHandler) Login(c fiber.Ctx) error {
 
 	if errors := utils.ValidateStruct(req); errors != nil {
 		return response.JSONValidationError(c, errors)
+	}
+
+	if err := utils.VerifyTurnstile(req.TurnstileToken); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Gagal memverifikasi captcha", "INVALID_CAPTCHA")
 	}
 
 	token, refreshToken, user, err := h.userService.LoginUser(req.Email, req.Password)
