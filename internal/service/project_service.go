@@ -72,10 +72,10 @@ func (s *projectService) CreateProject(userID uint, title string, themeID string
 
 	// 3. Create Project
 	project := &models.Project{
-		UserID:    userID,
-		Title:     title,
-		ThemeID:   themeID,
-		EventType: theme.EventType, // Inherit from Theme
+		UserID:         userID,
+		Title:          title,
+		ThemeID:        themeID,
+		EventType:      theme.EventType, // Inherit from Theme
 		Status:         models.ProjectStatusDraft,
 		Slug:           utils.GenerateSlug(title),
 		MusicID:        musicID,
@@ -151,8 +151,8 @@ func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug s
 
 	// Validate reserved slugs
 	reservedSlugs := map[string]bool{
-		"app": true, "auth": true, "buat-akun": true, "masuk": true,
-		"preview": true, "tema": true, "api": true, "admin": true,
+		"app": true, "auth": true,
+		"preview": true, "explore": true, "api": true, "admin": true,
 		"login": true, "register": true,
 	}
 	if reservedSlugs[slug] {

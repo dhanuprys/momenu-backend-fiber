@@ -133,7 +133,6 @@ func (h *UserHandler) UpdateProfile(c fiber.Ctx) error {
 	return response.JSONSuccess(c, fiber.StatusOK, "User profile updated successfully", user, nil)
 }
 
-
 func (h *UserHandler) getOAuthConfig() *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     config.AppConfig.GoogleClientID,
@@ -149,7 +148,7 @@ func (h *UserHandler) GoogleLoginURL(c fiber.Ctx) error {
 	oauthConf := h.getOAuthConfig()
 	// Create a random state token
 	state := utils.GenerateSlug("state") // simple random string generator using existing util
-	
+
 	// Set state in a secure cookie
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
@@ -189,7 +188,7 @@ func (h *UserHandler) GoogleCallback(c fiber.Ctx) error {
 	oauthConf := h.getOAuthConfig()
 	token, refreshToken, _, err := h.userService.GoogleLogin(context.Background(), code, oauthConf)
 	if err != nil {
-		redirectURL := fmt.Sprintf("%s/masuk?error=google_login_failed", config.AppConfig.FrontendURL)
+		redirectURL := fmt.Sprintf("%s/login?error=google_login_failed", config.AppConfig.FrontendURL)
 		return c.Redirect().To(redirectURL)
 	}
 
