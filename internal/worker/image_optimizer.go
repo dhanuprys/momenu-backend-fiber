@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,19 +37,30 @@ func StopImageOptimizer() {
 }
 
 func processUnoptimizedImages(db *gorm.DB, fileRepo repository.FileRecordRepository, logger *zap.Logger) {
+	logger.Info("Photo optimizer worker started cycle")
 	records, err := fileRepo.GetUnoptimizedImages()
 	if err != nil {
 		logger.Error("Failed to fetch unoptimized images", zap.Error(err))
 		return
 	}
 
+	if len(records) == 0 {
+		logger.Info("No unoptimized images found in this cycle")
+		return
+	}
+
+	logger.Info("Found unoptimized images to process", zap.Int("count", len(records)))
+
 	for _, record := range records {
 		optimizeSingleImage(db, fileRepo, record, logger)
 	}
+	
+	logger.Info("Photo optimizer worker completed cycle")
 }
 
 func optimizeSingleImage(db *gorm.DB, fileRepo repository.FileRecordRepository, record models.FileRecord, logger *zap.Logger) {
 	inputPath := record.FilePath
+	logger.Info("Starting optimization for image", zap.String("path", inputPath))
 
 	// Ensure the file exists
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
@@ -64,11 +76,19 @@ func optimizeSingleImage(db *gorm.DB, fileRepo repository.FileRecordRepository, 
 	// Compute new URL (assuming URL matches file path structure)
 	outURL := strings.TrimSuffix(record.URL, ext) + ".webp"
 
-	// Run cwebp
+	// Run cwebp with memory limits and timeout
 	qualityStr := strconv.FormatInt(config.AppConfig.ImageOptimizationQuality, 10)
-	cmd := exec.Command("cwebp", "-q", qualityStr, inputPath, "-o", outPath)
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "cwebp", "-q", qualityStr, "-low_memory", inputPath, "-o", outPath)
 	if err := cmd.Run(); err != nil {
-		logger.Error("cwebp failed", zap.String("input", inputPath), zap.Error(err))
+		if ctx.Err() == context.DeadlineExceeded {
+			logger.Error("cwebp timed out", zap.String("input", inputPath), zap.Error(ctx.Err()))
+		} else {
+			logger.Error("cwebp failed", zap.String("input", inputPath), zap.Error(err))
+		}
 		return
 	}
 
