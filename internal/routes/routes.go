@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/dhanuprys/momenu-backend-fiber/internal/handler"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/middleware"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
@@ -10,100 +12,135 @@ import (
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/response"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
-	"time"
 )
 
-func SetupRoutes(app *fiber.App) {
-	// Initialize Dependencies
+// ─── Dependency Container ───────────────────────────────────────────────────
+
+// deps holds all handler and middleware instances wired up at startup.
+type deps struct {
+	user            *handler.UserHandler
+	theme           *handler.ThemeHandler
+	project         *handler.ProjectHandler
+	schedule        *handler.ScheduleHandler
+	giftRegistry    *handler.GiftRegistryHandler
+	disk            *handler.DiskHandler
+	media           *handler.MediaHandler
+	dressCode       *handler.DressCodeHandler
+	liveStream      *handler.LiveStreamHandler
+	rsvp            *handler.RSVPHandler
+	guestbook       *handler.GuestbookHandler
+	invitation      *handler.InvitationHandler
+	admin           *handler.AdminHandler
+	system          *handler.SystemHandler
+	textOverride    *handler.TextOverrideHandler
+	styleOverride   *handler.StyleOverrideHandler
+	music           *handler.MusicHandler
+	upload          *handler.UploadHandler
+	analytics       *handler.AnalyticsHandler
+	share           *handler.ShareHandler
+	ownerMiddleware fiber.Handler
+}
+
+func initDependencies() *deps {
+	// Repositories
 	userRepo := repository.NewUserRepository(database.DB)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService)
-
 	themeRepo := repository.NewThemeRepository(database.DB)
-	themeService := service.NewThemeService(themeRepo)
-	themeHandler := handler.NewThemeHandler(themeService)
-
 	projectRepo := repository.NewProjectRepository(database.DB)
-	projectService := service.NewProjectService(projectRepo, themeRepo, userRepo)
-	projectHandler := handler.NewProjectHandler(projectService)
-
 	scheduleRepo := repository.NewScheduleRepository(database.DB)
-	scheduleService := service.NewScheduleService(scheduleRepo)
-	scheduleHandler := handler.NewScheduleHandler(scheduleService)
-
 	giftRegistryRepo := repository.NewGiftRegistryRepository(database.DB)
-	giftRegistryService := service.NewGiftRegistryService(giftRegistryRepo)
-	giftRegistryHandler := handler.NewGiftRegistryHandler(giftRegistryService)
-
 	fileRepo := repository.NewFileRecordRepository(database.DB)
-	quotaSvc := service.NewDiskQuotaService(fileRepo, projectRepo)
-	diskHandler := handler.NewDiskHandler(fileRepo, projectRepo, quotaSvc, database.DB)
-
 	mediaRepo := repository.NewMediaRepository(database.DB)
-	mediaService := service.NewMediaService(mediaRepo, themeRepo)
-	mediaHandler := handler.NewMediaHandler(mediaService, fileRepo, quotaSvc)
-
 	dressCodeRepo := repository.NewDressCodeRepository(database.DB)
-	dressCodeService := service.NewDressCodeService(dressCodeRepo)
-	dressCodeHandler := handler.NewDressCodeHandler(dressCodeService)
-
 	liveStreamRepo := repository.NewLiveStreamRepository(database.DB)
-	liveStreamService := service.NewLiveStreamService(liveStreamRepo)
-	liveStreamHandler := handler.NewLiveStreamHandler(liveStreamService)
-
 	rsvpRepo := repository.NewRSVPRepository(database.DB)
-	rsvpService := service.NewRSVPService(rsvpRepo, projectRepo)
-	rsvpHandler := handler.NewRSVPHandler(rsvpService, projectService)
-
 	guestbookRepo := repository.NewGuestbookRepository(database.DB)
-	guestbookService := service.NewGuestbookService(guestbookRepo, projectRepo)
-	guestbookHandler := handler.NewGuestbookHandler(guestbookService, projectService, rsvpService)
-
-	invitationService := service.NewInvitationService(projectRepo)
-	invitationHandler := handler.NewInvitationHandler(invitationService, rsvpService)
-	adminHandler := handler.NewAdminHandler()
-	systemHandler := handler.NewSystemHandler()
-
-	textOverrideHandler := handler.NewTextOverrideHandler()
-	styleOverrideHandler := handler.NewStyleOverrideHandler()
-
 	musicRepo := repository.NewMusicRepository(database.DB)
-	musicService := service.NewMusicService(musicRepo)
-	musicHandler := handler.NewMusicHandler(musicService)
-
-	uploadHandler := handler.NewUploadHandler(projectRepo, fileRepo, quotaSvc)
-
 	analyticsRepo := repository.NewAnalyticsRepository(database.DB)
+	shareRepo := repository.NewShareRepository(database.DB)
+
+	// Services
+	userService := service.NewUserService(userRepo)
+	themeService := service.NewThemeService(themeRepo)
+	projectService := service.NewProjectService(projectRepo, themeRepo, userRepo)
+	scheduleService := service.NewScheduleService(scheduleRepo)
+	giftRegistryService := service.NewGiftRegistryService(giftRegistryRepo)
+	quotaSvc := service.NewDiskQuotaService(fileRepo, projectRepo)
+	mediaService := service.NewMediaService(mediaRepo, themeRepo)
+	dressCodeService := service.NewDressCodeService(dressCodeRepo)
+	liveStreamService := service.NewLiveStreamService(liveStreamRepo)
+	rsvpService := service.NewRSVPService(rsvpRepo, projectRepo)
+	guestbookService := service.NewGuestbookService(guestbookRepo, projectRepo)
+	invitationService := service.NewInvitationService(projectRepo)
+	musicService := service.NewMusicService(musicRepo)
 	ipCheckerService := service.NewIPCheckerService()
 	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo, ipCheckerService)
-	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
+	shareService := service.NewShareService(shareRepo, projectRepo, rsvpRepo, analyticsRepo)
 
-	ownerMiddleware := middleware.ProjectOwner(projectRepo)
+	return &deps{
+		user:            handler.NewUserHandler(userService),
+		theme:           handler.NewThemeHandler(themeService),
+		project:         handler.NewProjectHandler(projectService),
+		schedule:        handler.NewScheduleHandler(scheduleService),
+		giftRegistry:    handler.NewGiftRegistryHandler(giftRegistryService),
+		disk:            handler.NewDiskHandler(fileRepo, projectRepo, quotaSvc, database.DB),
+		media:           handler.NewMediaHandler(mediaService, fileRepo, quotaSvc),
+		dressCode:       handler.NewDressCodeHandler(dressCodeService),
+		liveStream:      handler.NewLiveStreamHandler(liveStreamService),
+		rsvp:            handler.NewRSVPHandler(rsvpService, projectService),
+		guestbook:       handler.NewGuestbookHandler(guestbookService, projectService, rsvpService),
+		invitation:      handler.NewInvitationHandler(invitationService, rsvpService),
+		admin:           handler.NewAdminHandler(),
+		system:          handler.NewSystemHandler(),
+		textOverride:    handler.NewTextOverrideHandler(),
+		styleOverride:   handler.NewStyleOverrideHandler(),
+		music:           handler.NewMusicHandler(musicService),
+		upload:          handler.NewUploadHandler(projectRepo, fileRepo, quotaSvc),
+		analytics:       handler.NewAnalyticsHandler(analyticsService),
+		share:           handler.NewShareHandler(shareService),
+		ownerMiddleware: middleware.ProjectOwner(projectRepo),
+	}
+}
 
-	// API Versioning Group
+// ─── Route Registration ────────────────────────────────────────────────────
+
+func SetupRoutes(app *fiber.App) {
+	d := initDependencies()
+
 	api := app.Group("/api/v1")
 
-	// Health Check
+	registerHealthCheck(api)
+	registerAuthRoutes(api, d)
+	registerPublicRoutes(api, d)
+	registerProjectRoutes(api, d)
+	registerInvitationRoutes(api, d)
+	registerAdminRoutes(api, d)
+}
+
+// ─── Health Check ───────────────────────────────────────────────────────────
+
+func registerHealthCheck(api fiber.Router) {
 	api.Get("/health", func(c fiber.Ctx) error {
 		return response.JSONSuccess(c, fiber.StatusOK, "Server is healthy", fiber.Map{
 			"status": "up",
 		}, nil)
 	})
+}
 
-	// Auth & Identity Routes
+// ─── Auth & Identity ────────────────────────────────────────────────────────
+
+func registerAuthRoutes(api fiber.Router, d *deps) {
 	auth := api.Group("/auth")
-	auth.Post("/register", userHandler.Register)
-	auth.Post("/login", userHandler.Login)
-	auth.Get("/google/login", userHandler.GoogleLoginURL)
-	auth.Get("/google/callback", userHandler.GoogleCallback)
-	auth.Post("/refresh", userHandler.RefreshToken)
-	auth.Get("/me", middleware.AuthRequired, userHandler.Me)
+	auth.Post("/register", d.user.Register)
+	auth.Post("/login", d.user.Login)
+	auth.Get("/google/login", d.user.GoogleLoginURL)
+	auth.Get("/google/callback", d.user.GoogleCallback)
+	auth.Post("/refresh", d.user.RefreshToken)
+	auth.Get("/me", middleware.AuthRequired, d.user.Me)
+}
 
-	// File Upload (Authenticated)
-	api.Post("/upload", middleware.AuthRequired, uploadHandler.Upload)
+// ─── Public Routes (no auth) ────────────────────────────────────────────────
 
-
-
+func registerPublicRoutes(api fiber.Router, d *deps) {
 	// Event Type Schema
 	api.Get("/event-types/:type/schema", func(c fiber.Ctx) error {
 		eventType := models.EventType(c.Params("type"))
@@ -114,134 +151,168 @@ func SetupRoutes(app *fiber.App) {
 		return response.JSONSuccess(c, fiber.StatusOK, "Field schema retrieved", schema, nil)
 	})
 
-	// Themes (Public)
+	// Themes
 	themes := api.Group("/themes")
-	themes.Get("/", themeHandler.List)
-	themes.Get("/:id", themeHandler.Get)
+	themes.Get("/", d.theme.List)
+	themes.Get("/:id", d.theme.Get)
 
-	// Music (Public)
+	// Music
 	music := api.Group("/music")
-	music.Get("/categories", musicHandler.ListCategories)
-	music.Get("/", musicHandler.ListMusics)
+	music.Get("/categories", d.music.ListCategories)
+	music.Get("/", d.music.ListMusics)
 
-	// Projects (Authenticated)
+	// Public Resources (text/style overrides, share sessions)
+	api.Get("/public/text-overrides/:slug", d.textOverride.GetBySlug)
+	api.Get("/public/style-overrides/:slug", d.styleOverride.GetBySlug)
+	api.Get("/public/share/:sessionId", d.share.GetSharedData)
+
+	// Analytics (public visit tracking)
+	inviteLimiter := newInviteLimiter()
+	analytics := api.Group("/analytics")
+	analytics.Post("/visit", inviteLimiter, d.analytics.RecordVisit)
+}
+
+// ─── Project Routes (authenticated) ────────────────────────────────────────
+
+func registerProjectRoutes(api fiber.Router, d *deps) {
+	// File Upload
+	api.Post("/upload", middleware.AuthRequired, d.upload.Upload)
+
+	// Project CRUD
 	projects := api.Group("/projects", middleware.AuthRequired)
-	projects.Post("/", projectHandler.Create)
-	projects.Get("/", projectHandler.List)
+	projects.Post("/", d.project.Create)
+	projects.Get("/", d.project.List)
 
-	// Single Project (Authenticated + Owner)
-	project := projects.Group("/:projectId", ownerMiddleware, middleware.TrackProjectUpdate)
-	project.Get("/", projectHandler.Get)
-	project.Get("/version", projectHandler.GetVersion)
-	project.Put("/", projectHandler.Update)
-	project.Delete("/", projectHandler.Delete)
-	project.Patch("/status", projectHandler.UpdateStatus)
-	project.Get("/feature-toggle", projectHandler.GetFeatureToggle)
-	project.Put("/feature-toggle", projectHandler.UpdateFeatureToggle)
-	project.Get("/analytics", analyticsHandler.GetProjectAnalytics)
+	// Single Project (owner-scoped)
+	project := projects.Group("/:projectId", d.ownerMiddleware, middleware.TrackProjectUpdate)
+	project.Get("/", d.project.Get)
+	project.Get("/version", d.project.GetVersion)
+	project.Put("/", d.project.Update)
+	project.Delete("/", d.project.Delete)
+	project.Patch("/status", d.project.UpdateStatus)
+	project.Get("/feature-toggle", d.project.GetFeatureToggle)
+	project.Put("/feature-toggle", d.project.UpdateFeatureToggle)
+	project.Get("/analytics", d.analytics.GetProjectAnalytics)
+	project.Get("/disk-usage", d.disk.GetProjectDiskUsage)
 
-	// Sub-resource: Schedules
-	project.Get("/schedules", scheduleHandler.List)
-	project.Post("/schedules", scheduleHandler.Create)
-	project.Put("/schedules/:scheduleId", scheduleHandler.Update)
-	project.Delete("/schedules/:scheduleId", scheduleHandler.Delete)
+	// ── Sub-resources ───────────────────────────────────────────
 
-	// Sub-resource: Gift Registries
-	project.Get("/gift-registries", giftRegistryHandler.List)
-	project.Post("/gift-registries", giftRegistryHandler.Create)
-	project.Put("/gift-registries/:registryId", giftRegistryHandler.Update)
-	project.Delete("/gift-registries/:registryId", giftRegistryHandler.Delete)
+	// Share Sessions
+	project.Post("/share", d.share.CreateSession)
+	project.Get("/share", d.share.ListSessions)
+	project.Delete("/share/:sessionId", d.share.RevokeSession)
 
-	// Sub-resource: Media Mappings
-	project.Get("/media", mediaHandler.List)
-	project.Post("/media", mediaHandler.Create)
-	project.Put("/media/:mediaId", mediaHandler.Update)
-	project.Delete("/media/:mediaId", mediaHandler.Delete)
+	// Schedules
+	project.Get("/schedules", d.schedule.List)
+	project.Post("/schedules", d.schedule.Create)
+	project.Put("/schedules/:scheduleId", d.schedule.Update)
+	project.Delete("/schedules/:scheduleId", d.schedule.Delete)
 
-	// Sub-resource: Dress Codes
-	project.Get("/dress-codes", dressCodeHandler.List)
-	project.Post("/dress-codes", dressCodeHandler.Create)
-	project.Put("/dress-codes/:dressCodeId", dressCodeHandler.Update)
-	project.Delete("/dress-codes/:dressCodeId", dressCodeHandler.Delete)
+	// Gift Registries
+	project.Get("/gift-registries", d.giftRegistry.List)
+	project.Post("/gift-registries", d.giftRegistry.Create)
+	project.Put("/gift-registries/:registryId", d.giftRegistry.Update)
+	project.Delete("/gift-registries/:registryId", d.giftRegistry.Delete)
 
-	// Sub-resource: Live Streams
-	project.Get("/live-streams", liveStreamHandler.List)
-	project.Post("/live-streams", liveStreamHandler.Create)
-	project.Put("/live-streams/:streamId", liveStreamHandler.Update)
-	project.Delete("/live-streams/:streamId", liveStreamHandler.Delete)
+	// Media Mappings
+	project.Get("/media", d.media.List)
+	project.Post("/media", d.media.Create)
+	project.Put("/media/:mediaId", d.media.Update)
+	project.Delete("/media/:mediaId", d.media.Delete)
 
-	// Sub-resource: Text Overrides
-	project.Get("/text-overrides", textOverrideHandler.List)
-	project.Put("/text-overrides", textOverrideHandler.Upsert)
-	project.Delete("/text-overrides/:slotKey", textOverrideHandler.Delete)
+	// Dress Codes
+	project.Get("/dress-codes", d.dressCode.List)
+	project.Post("/dress-codes", d.dressCode.Create)
+	project.Put("/dress-codes/:dressCodeId", d.dressCode.Update)
+	project.Delete("/dress-codes/:dressCodeId", d.dressCode.Delete)
 
-	// Sub-resource: Style Overrides
-	project.Get("/style-overrides", styleOverrideHandler.List)
-	project.Put("/style-overrides", styleOverrideHandler.Upsert)
-	project.Delete("/style-overrides/:slotKey", styleOverrideHandler.Delete)
-	
-	// Project Disk Usage
-	project.Get("/disk-usage", diskHandler.GetProjectDiskUsage)
+	// Live Streams
+	project.Get("/live-streams", d.liveStream.List)
+	project.Post("/live-streams", d.liveStream.Create)
+	project.Put("/live-streams/:streamId", d.liveStream.Update)
+	project.Delete("/live-streams/:streamId", d.liveStream.Delete)
 
-	// Owner: RSVPs
-	rsvpsGroup := project.Group("/rsvps")
-	rsvpsGroup.Get("/export", rsvpHandler.ExportXLSX)
-	rsvpsGroup.Post("/bulk", rsvpHandler.ImportXLSX)
-	rsvpsGroup.Get("/stats", rsvpHandler.Stats)
-	rsvpsGroup.Get("/", rsvpHandler.List)
-	rsvpsGroup.Post("/", rsvpHandler.OwnerUpsert)
-	rsvpsGroup.Delete("/:id", rsvpHandler.Delete)
+	// Text Overrides
+	project.Get("/text-overrides", d.textOverride.List)
+	project.Put("/text-overrides", d.textOverride.Upsert)
+	project.Delete("/text-overrides/:slotKey", d.textOverride.Delete)
 
-	// Owner: Guestbook
-	gbGroup := project.Group("/guestbook")
-	gbGroup.Get("/", guestbookHandler.List)
-	gbGroup.Delete("/:entryId", guestbookHandler.Delete)
+	// Style Overrides
+	project.Get("/style-overrides", d.styleOverride.List)
+	project.Put("/style-overrides", d.styleOverride.Upsert)
+	project.Delete("/style-overrides/:slotKey", d.styleOverride.Delete)
 
-	// Public Invitation Routes
-	inviteLimiter := limiter.New(limiter.Config{
+	// RSVPs
+	rsvps := project.Group("/rsvps")
+	rsvps.Get("/export", d.rsvp.ExportXLSX)
+	rsvps.Post("/bulk", d.rsvp.ImportXLSX)
+	rsvps.Get("/stats", d.rsvp.Stats)
+	rsvps.Get("/", d.rsvp.List)
+	rsvps.Post("/", d.rsvp.OwnerUpsert)
+	rsvps.Delete("/:id", d.rsvp.Delete)
+
+	// Guestbook
+	gb := project.Group("/guestbook")
+	gb.Get("/", d.guestbook.List)
+	gb.Delete("/:entryId", d.guestbook.Delete)
+}
+
+// ─── Public Invitation Routes ───────────────────────────────────────────────
+
+func registerInvitationRoutes(api fiber.Router, d *deps) {
+	inviteLimiter := newInviteLimiter()
+
+	// Register the same handlers under both /invite and /public/invite prefixes
+	for _, prefix := range []string{"/invite/:slug", "/public/invite/:slug"} {
+		invite := api.Group(prefix)
+		invite.Get("/og", d.invitation.GetOGMetadata)
+		invite.Get("/", d.invitation.GetInvitation)
+		invite.Get("/guest", d.rsvp.PublicGetGuest)
+		invite.Post("/rsvp", inviteLimiter, d.rsvp.PublicUpsert)
+		invite.Get("/guestbook", d.guestbook.PublicList)
+		invite.Post("/guestbook", inviteLimiter, d.guestbook.PublicCreate)
+	}
+}
+
+// ─── Admin Routes ───────────────────────────────────────────────────────────
+
+func registerAdminRoutes(api fiber.Router, d *deps) {
+	admin := api.Group("/admin", middleware.AuthRequired, middleware.AdminRequired)
+
+	// User Management
+	admin.Get("/users", d.admin.ListUsers)
+	admin.Post("/users", d.admin.CreateUser)
+	admin.Post("/users/:id/login-as", d.admin.LoginAsUser)
+	admin.Delete("/users/:id", d.admin.DeleteUser)
+	admin.Put("/users/:id/status", d.admin.UpdateUserStatus)
+
+	// Project Management
+	admin.Get("/projects", d.admin.ListProjects)
+	admin.Delete("/projects/:id", d.admin.DeleteProject)
+	admin.Patch("/projects/:projectId/disk-quota", d.disk.UpdateProjectDiskQuota)
+
+	// Music Management
+	admin.Post("/music/categories", d.admin.CreateMusicCategory)
+	admin.Put("/music/categories/:id", d.admin.UpdateMusicCategory)
+	admin.Delete("/music/categories/:id", d.admin.DeleteMusicCategory)
+	admin.Post("/music", d.admin.CreateMusic)
+	admin.Delete("/music/:id", d.admin.DeleteMusic)
+
+	// Theme Management
+	admin.Get("/themes", d.admin.ListThemes)
+	admin.Put("/themes/:id", d.admin.UpdateTheme)
+
+	// System
+	admin.Post("/upload", d.upload.AdminUpload)
+	admin.Get("/disk-stats", d.disk.GetGlobalStats)
+	admin.Get("/system/resources", d.system.GetResources)
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+func newInviteLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
 		Max:        20,
 		Expiration: 1 * time.Minute,
 	})
-
-	invite := api.Group("/invite/:slug")
-	invite.Get("/og", invitationHandler.GetOGMetadata) // New public get OG metadata
-	invite.Get("/", invitationHandler.GetInvitation)
-	invite.Get("/guest", rsvpHandler.PublicGetGuest) // New public get guest
-	invite.Post("/rsvp", inviteLimiter, rsvpHandler.PublicUpsert)
-	invite.Get("/guestbook", guestbookHandler.PublicList)
-	invite.Post("/guestbook", inviteLimiter, guestbookHandler.PublicCreate)
-
-	// Public Invitation Routes (New Prefix)
-	publicInvite := api.Group("/public/invite/:slug")
-	publicInvite.Get("/og", invitationHandler.GetOGMetadata)
-	publicInvite.Get("/", invitationHandler.GetInvitation)
-	publicInvite.Get("/guest", rsvpHandler.PublicGetGuest)
-	publicInvite.Post("/rsvp", inviteLimiter, rsvpHandler.PublicUpsert)
-	publicInvite.Get("/guestbook", guestbookHandler.PublicList)
-	publicInvite.Post("/guestbook", inviteLimiter, guestbookHandler.PublicCreate)
-
-	// Public Analytics
-	analyticsPublic := api.Group("/analytics")
-	analyticsPublic.Post("/visit", inviteLimiter, analyticsHandler.RecordVisit)
-
-	// Admin Routes
-	admin := api.Group("/admin", middleware.AuthRequired, middleware.AdminRequired)
-	admin.Get("/users", adminHandler.ListUsers)
-	admin.Post("/users", adminHandler.CreateUser)
-	admin.Post("/users/:id/login-as", adminHandler.LoginAsUser)
-	admin.Delete("/users/:id", adminHandler.DeleteUser)
-	admin.Put("/users/:id/status", adminHandler.UpdateUserStatus)
-	admin.Get("/projects", adminHandler.ListProjects)
-	admin.Delete("/projects/:id", adminHandler.DeleteProject)
-	admin.Post("/music/categories", adminHandler.CreateMusicCategory)
-	admin.Put("/music/categories/:id", adminHandler.UpdateMusicCategory)
-	admin.Delete("/music/categories/:id", adminHandler.DeleteMusicCategory)
-	admin.Post("/music", adminHandler.CreateMusic)
-	admin.Delete("/music/:id", adminHandler.DeleteMusic)
-	admin.Get("/themes", adminHandler.ListThemes)
-	admin.Put("/themes/:id", adminHandler.UpdateTheme)
-	admin.Post("/upload", uploadHandler.AdminUpload)
-	admin.Get("/disk-stats", diskHandler.GetGlobalStats)
-	admin.Patch("/projects/:projectId/disk-quota", diskHandler.UpdateProjectDiskQuota)
-	admin.Get("/system/resources", systemHandler.GetResources)
 }

@@ -194,7 +194,7 @@ type User struct {
 type Theme struct {
 	ID          string    `gorm:"primaryKey" json:"id"`       // e.g., "floral_wedding"
 	Name        string    `gorm:"not null" json:"name"`       // e.g., "Floral Elegance"
-	EventType   EventType `gorm:"not null" json:"event_type"` // strongly-typed event type
+	EventType   EventType `gorm:"not null;index" json:"event_type"` // strongly-typed event type
 	Description string    `json:"description"`
 	Thumbnail    string         `json:"thumbnail"`
 	Price        *float64       `json:"price"`         // nullable price
@@ -231,7 +231,7 @@ type Music struct {
 // Project - Core Project Architecture
 type Project struct {
 	ID               uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	UserID           uint           `gorm:"not null" json:"user_id"`
+	UserID           uint           `gorm:"not null;index" json:"user_id"`
 	Title            string         `gorm:"not null" json:"title"`
 	ThemeID          string         `gorm:"not null" json:"theme_id"` // Matches hardcoded theme registry
 	Theme            Theme          `gorm:"foreignKey:ThemeID" json:"theme,omitempty"`
@@ -253,6 +253,7 @@ type Project struct {
 	TextOverrides    []TextOverride  `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"text_overrides"`
 	StyleOverrides   []StyleOverride `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"style_overrides"`
 	ProjectVisits    []ProjectVisit  `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"project_visits"`
+	ShareSessions    []ProjectShareSession `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"share_sessions"`
 	DiskQuotaBytes   int64          `gorm:"default:104857600" json:"disk_quota_bytes"` // default 100MB
 	UpdateCount      uint           `gorm:"default:0" json:"update_count"`
 	CreatedAt        time.Time      `json:"created_at"`
@@ -287,7 +288,7 @@ func GetFieldSchema(eventType EventType) []FieldGroup {
 // Schedule - Event Content & Timeline
 type Schedule struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID `gorm:"type:uuid;not null" json:"project_id"`
+	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
 	Title     string    `gorm:"not null" json:"title"` // e.g., "Morning Ceremony"
 	StartTime time.Time `gorm:"not null" json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
@@ -300,7 +301,7 @@ type Schedule struct {
 // GiftRegistry - Financial/Gifting Router
 type GiftRegistry struct {
 	ID             uint             `gorm:"primaryKey" json:"id"`
-	ProjectID      uuid.UUID        `gorm:"type:uuid;not null" json:"project_id"`
+	ProjectID      uuid.UUID        `gorm:"type:uuid;not null;index" json:"project_id"`
 	Type           GiftRegistryType `gorm:"not null" json:"type"` // strongly-typed gift registry type
 	ProviderName   string           `json:"provider_name"`        // e.g., "BCA", "GoPay"
 	AccountNumber  string           `json:"account_number"`
@@ -313,8 +314,8 @@ type GiftRegistry struct {
 // MediaMapping - Galleries & Teasers
 type MediaMapping struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID `gorm:"type:uuid;not null" json:"project_id"`
-	Bucket    string    `gorm:"not null" json:"bucket"`     // e.g., "hero_slider", "second_section_grid", "footer_teaser"
+	ProjectID uuid.UUID `gorm:"type:uuid;not null;index:idx_media_project_bucket,priority:1;index" json:"project_id"`
+	Bucket    string    `gorm:"not null;index:idx_media_project_bucket,priority:2" json:"bucket"`     // e.g., "hero_slider", "second_section_grid", "footer_teaser"
 	MediaType MediaType `gorm:"not null" json:"media_type"` // strongly-typed media type
 	URL       string         `gorm:"not null" json:"url"`
 	Order     int            `gorm:"default:0" json:"order"`
@@ -324,13 +325,13 @@ type MediaMapping struct {
 // RSVP - Guest Interactions
 type RSVP struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
-	ProjectID      uuid.UUID      `gorm:"type:uuid;uniqueIndex:idx_rsvp_project_name;not null" json:"project_id"`
+	ProjectID      uuid.UUID      `gorm:"type:uuid;uniqueIndex:idx_rsvp_project_name;index:idx_rsvp_stats,priority:1;not null" json:"project_id"`
 	Name           string         `gorm:"uniqueIndex:idx_rsvp_project_name;not null" json:"name"`
-	Attending      bool           `gorm:"not null" json:"attending"`
+	Attending      bool           `gorm:"not null;index:idx_rsvp_stats,priority:2" json:"attending"`
 	GuestCount     int            `gorm:"default:1" json:"guest_count"`
 	SpecialMessage string         `gorm:"type:text" json:"special_message,omitempty"`
 	Whatsapp       *string        `json:"whatsapp,omitempty"`
-	IsResponded    bool           `gorm:"default:false" json:"is_responded"`
+	IsResponded    bool           `gorm:"default:false;index:idx_rsvp_stats,priority:3" json:"is_responded"`
 	HasOpened      bool           `gorm:"default:false" json:"has_opened"`
 	CreatedAt      time.Time      `json:"created_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
@@ -339,7 +340,7 @@ type RSVP struct {
 // Guestbook - Wishes
 type Guestbook struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID `gorm:"type:uuid;not null" json:"project_id"`
+	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
 	Name      string    `gorm:"not null" json:"name"`
 	Message   string         `gorm:"type:text;not null" json:"message"`
 	CreatedAt time.Time      `json:"created_at"`
@@ -373,7 +374,7 @@ type StyleOverride struct {
 // DressCode - Flexible Dress Code Router
 type DressCode struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID      `gorm:"type:uuid;not null" json:"project_id"`
+	ProjectID uuid.UUID      `gorm:"type:uuid;not null;index" json:"project_id"`
 	Label     string         `gorm:"not null" json:"label"`  // e.g., "Male/Female", "L/P"
 	Colors    datatypes.JSON `gorm:"not null" json:"colors"` // JSON list of colors
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
@@ -382,7 +383,7 @@ type DressCode struct {
 // LiveStream - Dedicated resource for live streaming
 type LiveStream struct {
 	ID        uint               `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID          `gorm:"type:uuid;not null" json:"project_id"`
+	ProjectID uuid.UUID          `gorm:"type:uuid;not null;index" json:"project_id"`
 	Platform  LiveStreamPlatform `gorm:"not null" json:"platform"` // strongly-typed platform
 	URL       string             `gorm:"not null" json:"url"`
 	CreatedAt time.Time          `json:"created_at"`
@@ -392,14 +393,26 @@ type LiveStream struct {
 // ProjectVisit - Analytics Tracking
 type ProjectVisit struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID      `gorm:"type:uuid;index;not null" json:"project_id"`
-	GuestName string         `gorm:"index" json:"guest_name"`
-	Source    string         `json:"source"`
+	ProjectID uuid.UUID      `gorm:"type:uuid;index;index:idx_visit_project_source,priority:1;index:idx_visit_project_device,priority:1;index:idx_visit_project_ip,priority:1;index:idx_visit_project_created,priority:1;not null" json:"project_id"`
+	GuestName string         `json:"guest_name"`
+	Source    string         `gorm:"index:idx_visit_project_source,priority:2" json:"source"`
 	UserAgent  string         `json:"user_agent"`
-	DeviceType string         `json:"device_type"`
-	IPAddress  string         `json:"ip_address"`
+	DeviceType string         `gorm:"index:idx_visit_project_device,priority:2" json:"device_type"`
+	IPAddress  string         `gorm:"index:idx_visit_project_ip,priority:2" json:"ip_address"`
 	Country    *string        `json:"country,omitempty"`
-	CreatedAt time.Time      `gorm:"index" json:"created_at"`
+	CreatedAt time.Time      `gorm:"index:idx_visit_project_created,priority:2" json:"created_at"`
+}
+
+// ProjectShareSession - Tracks active share sessions
+type ProjectShareSession struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	ProjectID uuid.UUID      `gorm:"type:uuid;index;not null" json:"project_id"`
+	SessionID string         `gorm:"uniqueIndex;not null" json:"session_id"`
+	IsRevoked bool           `gorm:"default:false" json:"is_revoked"`
+	ExpiresAt *time.Time     `json:"expires_at"`
+	LastAccessedAt *time.Time `json:"last_accessed_at"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // FileRecord represents a file uploaded by a user and stored on disk.
@@ -411,7 +424,7 @@ type FileRecord struct {
 	ContentType   string         `json:"content_type"`
 	Size          int64          `gorm:"not null" json:"size"`
 	OptimizedSize *int64         `json:"optimized_size,omitempty"`
-	IsOptimized   bool           `gorm:"default:false" json:"is_optimized"`
+	IsOptimized   bool           `gorm:"default:false;index:idx_file_unoptimized,priority:1" json:"is_optimized"`
 	MediaType     string         `gorm:"not null;index" json:"media_type"`
 	ProjectID     *uuid.UUID     `gorm:"type:uuid;index" json:"project_id,omitempty"`
 	UploadedByID  *uint          `gorm:"index" json:"uploaded_by_id,omitempty"`

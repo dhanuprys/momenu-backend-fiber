@@ -57,7 +57,6 @@ func (r *projectRepository) GetProjectByID(id uuid.UUID) (*models.Project, error
 		Preload("DressCodes").
 		Preload("LiveStreams").
 		Preload("Music").
-		Preload("ProjectVisits").
 		Preload("TextOverrides").
 		Preload("StyleOverrides").
 		First(&project, id).Error
@@ -81,7 +80,6 @@ func (r *projectRepository) GetProjectBySlug(slug string) (*models.Project, erro
 		Preload("DressCodes").
 		Preload("LiveStreams").
 		Preload("Music").
-		Preload("ProjectVisits").
 		Preload("TextOverrides").
 		Preload("StyleOverrides").
 		First(&project).Error

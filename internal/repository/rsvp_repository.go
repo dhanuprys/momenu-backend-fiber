@@ -77,34 +77,28 @@ func (r *rsvpRepository) MarkAsOpened(projectID uuid.UUID, name string) error {
 }
 
 func (r *rsvpRepository) GetStatsByProjectID(projectID uuid.UUID) (int64, int64, int64, int64, error) {
-	var attending, notAttending, pending int64
+	type StatsResult struct {
+		Attending    int64
+		NotAttending int64
+		Pending      int64
+		TotalPax     int64
+	}
 
-	err := r.db.Model(&models.RSVP{}).Where("project_id = ? AND attending = ? AND is_responded = ?", projectID, true, true).Count(&attending).Error
+	var result StatsResult
+	err := r.db.Model(&models.RSVP{}).
+		Where("project_id = ?", projectID).
+		Select(`
+			SUM(CASE WHEN attending = true AND is_responded = true THEN 1 ELSE 0 END) as attending,
+			SUM(CASE WHEN attending = false AND is_responded = true THEN 1 ELSE 0 END) as not_attending,
+			SUM(CASE WHEN is_responded = false THEN 1 ELSE 0 END) as pending,
+			COALESCE(SUM(CASE WHEN attending = true AND is_responded = true THEN guest_count ELSE 0 END), 0) as total_pax
+		`).Scan(&result).Error
+
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	err = r.db.Model(&models.RSVP{}).Where("project_id = ? AND attending = ? AND is_responded = ?", projectID, false, true).Count(&notAttending).Error
-	if err != nil {
-		return 0, 0, 0, 0, err
-	}
-	
-	err = r.db.Model(&models.RSVP{}).Where("project_id = ? AND is_responded = ?", projectID, false).Count(&pending).Error
-	if err != nil {
-		return 0, 0, 0, 0, err
-	}
-
-	// Calculate total pax using sum
-	type Result struct {
-		TotalPax int64
-	}
-	var res Result
-	err = r.db.Model(&models.RSVP{}).Where("project_id = ? AND attending = ? AND is_responded = ?", projectID, true, true).Select("sum(guest_count) as total_pax").Scan(&res).Error
-	if err != nil {
-		return 0, 0, 0, 0, err
-	}
-
-	return attending, notAttending, pending, res.TotalPax, nil
+	return result.Attending, result.NotAttending, result.Pending, result.TotalPax, nil
 }
 
 func (r *rsvpRepository) Delete(projectID uuid.UUID, id uint) error {

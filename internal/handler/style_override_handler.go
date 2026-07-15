@@ -37,6 +37,22 @@ func (h *StyleOverrideHandler) List(c fiber.Ctx) error {
 	return response.JSONSuccess(c, fiber.StatusOK, "Style overrides retrieved successfully", overrides, nil)
 }
 
+func (h *StyleOverrideHandler) GetBySlug(c fiber.Ctx) error {
+	slug := c.Params("slug")
+
+	var project models.Project
+	if err := database.DB.Where("slug = ?", slug).First(&project).Error; err != nil {
+		return response.JSONError(c, fiber.StatusNotFound, "Project not found", "PROJECT_NOT_FOUND")
+	}
+
+	var overrides []models.StyleOverride
+	if err := database.DB.Where("project_id = ?", project.ID).Find(&overrides).Error; err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to retrieve style overrides", "INTERNAL_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "Style overrides retrieved successfully", overrides, nil)
+}
+
 func (h *StyleOverrideHandler) Upsert(c fiber.Ctx) error {
 	project := c.Locals("project").(*models.Project)
 

@@ -38,6 +38,22 @@ func (h *TextOverrideHandler) List(c fiber.Ctx) error {
 	return response.JSONSuccess(c, fiber.StatusOK, "Text overrides retrieved successfully", overrides, nil)
 }
 
+func (h *TextOverrideHandler) GetBySlug(c fiber.Ctx) error {
+	slug := c.Params("slug")
+
+	var project models.Project
+	if err := database.DB.Where("slug = ?", slug).First(&project).Error; err != nil {
+		return response.JSONError(c, fiber.StatusNotFound, "Project not found", "PROJECT_NOT_FOUND")
+	}
+
+	var overrides []models.TextOverride
+	if err := database.DB.Where("project_id = ?", project.ID).Find(&overrides).Error; err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to retrieve text overrides", "INTERNAL_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "Text overrides retrieved successfully", overrides, nil)
+}
+
 func (h *TextOverrideHandler) Upsert(c fiber.Ctx) error {
 	project := c.Locals("project").(*models.Project)
 
