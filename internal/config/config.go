@@ -19,6 +19,7 @@ type Config struct {
 	FrontendURL        string
 	TurnstileSecret           string
 	DefaultProjectDiskQuotaMB int64
+	ImageOptimizationQuality  int64
 }
 
 var AppConfig *Config
@@ -40,6 +41,7 @@ func Load() {
 		FrontendURL:               getEnv("FRONTEND_URL", "http://localhost:20260"),
 		TurnstileSecret:           getEnv("TURNSTILE_SECRET_KEY", ""),
 		DefaultProjectDiskQuotaMB: getEnvAsInt64("DEFAULT_PROJECT_DISK_QUOTA_MB", 100),
+		ImageOptimizationQuality:  getEnvAsInt64("IMAGE_OPTIMIZATION_QUALITY", 80),
 	}
 
 	if AppConfig.Env == "production" && AppConfig.JWTSecret == "supersecretkey" {

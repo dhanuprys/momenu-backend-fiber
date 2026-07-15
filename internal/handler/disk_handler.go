@@ -66,27 +66,29 @@ func (h *DiskHandler) GetProjectDiskUsage(c fiber.Ctx) error {
 
 	// Prepare simplified file response for frontend
 	type FileResponse struct {
-		ID           uint   `json:"id"`
-		URL          string `json:"url"`
-		OriginalName string `json:"original_name"`
-		ContentType  string `json:"content_type"`
-		Size         int64  `json:"size"`
-		IsOptimized  bool   `json:"is_optimized"`
-		MediaType    string `json:"media_type"`
-		CreatedAt    string `json:"created_at"`
+		ID            uint   `json:"id"`
+		URL           string `json:"url"`
+		OriginalName  string `json:"original_name"`
+		ContentType   string `json:"content_type"`
+		Size          int64  `json:"size"`
+		OptimizedSize *int64 `json:"optimized_size,omitempty"`
+		IsOptimized   bool   `json:"is_optimized"`
+		MediaType     string `json:"media_type"`
+		CreatedAt     string `json:"created_at"`
 	}
 	
 	fileResponses := make([]FileResponse, 0, len(files))
 	for _, f := range files {
 		fileResponses = append(fileResponses, FileResponse{
-			ID:           f.ID,
-			URL:          f.URL,
-			OriginalName: f.OriginalName,
-			ContentType:  f.ContentType,
-			Size:         f.Size,
-			IsOptimized:  f.IsOptimized,
-			MediaType:    f.MediaType,
-			CreatedAt:    f.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			ID:            f.ID,
+			URL:           f.URL,
+			OriginalName:  f.OriginalName,
+			ContentType:   f.ContentType,
+			Size:          f.Size,
+			OptimizedSize: f.OptimizedSize,
+			IsOptimized:   f.IsOptimized,
+			MediaType:     f.MediaType,
+			CreatedAt:     f.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
 

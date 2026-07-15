@@ -10,6 +10,7 @@ import (
 
 type AnalyticsRepository interface {
 	CreateVisit(visit *models.ProjectVisit) error
+	UpdateVisit(visit *models.ProjectVisit) error
 	GetTotalVisits(projectID uuid.UUID) (int64, error)
 	GetUniqueGuests(projectID uuid.UUID) (int64, error)
 	GetRecentVisits(projectID uuid.UUID, limit int) ([]models.ProjectVisit, error)
@@ -45,6 +46,10 @@ func (r *analyticsRepository) CreateVisit(visit *models.ProjectVisit) error {
 	return r.db.Create(visit).Error
 }
 
+func (r *analyticsRepository) UpdateVisit(visit *models.ProjectVisit) error {
+	return r.db.Save(visit).Error
+}
+
 func (r *analyticsRepository) GetTotalVisits(projectID uuid.UUID) (int64, error) {
 	var count int64
 	err := r.db.Model(&models.ProjectVisit{}).Where("project_id = ?", projectID).Count(&count).Error
@@ -71,15 +76,38 @@ func (r *analyticsRepository) GetRecentVisits(projectID uuid.UUID, limit int) ([
 }
 
 func (r *analyticsRepository) GetVisitsOverTime(projectID uuid.UUID, days int) ([]DailyVisit, error) {
-	var results []DailyVisit
-	timeAgo := time.Now().AddDate(0, 0, -days)
+	var dbResults []DailyVisit
+	now := time.Now()
+	timeAgo := now.AddDate(0, 0, -days+1)
+	startOfDay := time.Date(timeAgo.Year(), timeAgo.Month(), timeAgo.Day(), 0, 0, 0, 0, timeAgo.Location())
+
 	err := r.db.Model(&models.ProjectVisit{}).
 		Select("DATE(created_at) as date, count(id) as count").
-		Where("project_id = ? AND created_at >= ?", projectID, timeAgo).
+		Where("project_id = ? AND created_at >= ?", projectID, startOfDay).
 		Group("DATE(created_at)").
 		Order("date ASC").
-		Scan(&results).Error
-	return results, err
+		Scan(&dbResults).Error
+	if err != nil {
+		return nil, err
+	}
+
+	dateMap := make(map[string]int64)
+	for _, v := range dbResults {
+		if len(v.Date) >= 10 {
+			dateMap[v.Date[:10]] = v.Count
+		}
+	}
+
+	var results []DailyVisit
+	for i := days - 1; i >= 0; i-- {
+		dateStr := now.AddDate(0, 0, -i).Format("2006-01-02")
+		results = append(results, DailyVisit{
+			Date:  dateStr,
+			Count: dateMap[dateStr],
+		})
+	}
+
+	return results, nil
 }
 
 func (r *analyticsRepository) GetVisitsBySource(projectID uuid.UUID) ([]SourceStats, error) {

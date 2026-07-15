@@ -111,23 +111,44 @@ func (h *UploadHandler) Upload(c fiber.Ctx) error {
 			return response.JSONError(c, fiber.StatusBadRequest, "Quota exceeded", "QUOTA_EXCEEDED")
 		}
 
-		fileInfo, err := storage.StreamFile(part, part.FileName(), "media", mediaType, maxAllowedSize)
+		var fileInfo *storage.FileRecordInfo
+		if mediaType == "thumbnail" {
+			fileInfo, err = storage.ProcessThumbnail(part, part.FileName(), "media", maxAllowedSize)
+		} else {
+			fileInfo, err = storage.StreamFile(part, part.FileName(), "media", mediaType, maxAllowedSize)
+		}
+
 		if err != nil {
 			if err == storage.ErrFileTooLarge {
 				return response.JSONError(c, fiber.StatusBadRequest, "File too large or quota exceeded", "QUOTA_EXCEEDED")
 			}
+			if err == storage.ErrNotLandscape {
+				return response.JSONError(c, fiber.StatusBadRequest, "Gambar thumbnail harus berformat landscape (lebar > tinggi)", "INVALID_DIMENSIONS")
+			}
+			if err == storage.ErrImageTooLarge {
+				return response.JSONError(c, fiber.StatusBadRequest, "Dimensi gambar terlalu besar (Maks 8192x8192)", "INVALID_DIMENSIONS")
+			}
 			return response.JSONError(c, fiber.StatusInternalServerError, "Failed to upload file", "INTERNAL_SERVER_ERROR")
 		}
 
+		var isOptimized bool
+		var optimizedSize *int64
+		if mediaType == "thumbnail" {
+			isOptimized = true
+			optimizedSize = fileInfo.OptimizedSize
+		}
+
 		record := &models.FileRecord{
-			URL:          fileInfo.URL,
-			FilePath:     fileInfo.FilePath,
-			OriginalName: fileInfo.OriginalName,
-			ContentType:  fileInfo.ContentType,
-			Size:         fileInfo.Size,
-			MediaType:    fileInfo.MediaType,
-			ProjectID:    &projectID,
-			UploadedByID: &userID,
+			URL:           fileInfo.URL,
+			FilePath:      fileInfo.FilePath,
+			OriginalName:  fileInfo.OriginalName,
+			ContentType:   fileInfo.ContentType,
+			Size:          fileInfo.Size,
+			IsOptimized:   isOptimized,
+			OptimizedSize: optimizedSize,
+			MediaType:     fileInfo.MediaType,
+			ProjectID:     &projectID,
+			UploadedByID:  &userID,
 		}
 
 		if err := h.fileRepo.Create(record); err != nil {

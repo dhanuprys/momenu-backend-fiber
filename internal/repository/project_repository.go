@@ -8,7 +8,7 @@ import (
 
 type ProjectRepository interface {
 	CreateProject(project *models.Project) error
-	GetProjectsByUserID(userID uint, page, limit int) ([]models.Project, int64, error)
+	GetProjectsByUserID(userID uint, page, limit int, status string) ([]models.Project, int64, error)
 	GetProjectByID(id uuid.UUID) (*models.Project, error)
 	GetProjectBySlug(slug string) (*models.Project, error)
 	GetProjectOGMetadata(slug string) (*models.Project, error)
@@ -30,11 +30,14 @@ func (r *projectRepository) CreateProject(project *models.Project) error {
 	return r.db.Create(project).Error
 }
 
-func (r *projectRepository) GetProjectsByUserID(userID uint, page, limit int) ([]models.Project, int64, error) {
+func (r *projectRepository) GetProjectsByUserID(userID uint, page, limit int, status string) ([]models.Project, int64, error) {
 	projects := make([]models.Project, 0)
 	var total int64
 	
 	query := r.db.Model(&models.Project{}).Where("user_id = ?", userID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
 	query.Count(&total)
 
 	offset := (page - 1) * limit

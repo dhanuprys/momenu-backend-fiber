@@ -74,7 +74,8 @@ func SetupRoutes(app *fiber.App) {
 	uploadHandler := handler.NewUploadHandler(projectRepo, fileRepo, quotaSvc)
 
 	analyticsRepo := repository.NewAnalyticsRepository(database.DB)
-	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo)
+	ipCheckerService := service.NewIPCheckerService()
+	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo, ipCheckerService)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
 
 	ownerMiddleware := middleware.ProjectOwner(projectRepo)
@@ -227,6 +228,8 @@ func SetupRoutes(app *fiber.App) {
 	admin := api.Group("/admin", middleware.AuthRequired, middleware.AdminRequired)
 	admin.Get("/users", adminHandler.ListUsers)
 	admin.Post("/users", adminHandler.CreateUser)
+	admin.Post("/users/:id/login-as", adminHandler.LoginAsUser)
+	admin.Delete("/users/:id", adminHandler.DeleteUser)
 	admin.Put("/users/:id/status", adminHandler.UpdateUserStatus)
 	admin.Get("/projects", adminHandler.ListProjects)
 	admin.Delete("/projects/:id", adminHandler.DeleteProject)

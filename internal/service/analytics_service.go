@@ -16,12 +16,14 @@ type AnalyticsService interface {
 type analyticsService struct {
 	analyticsRepo repository.AnalyticsRepository
 	projectRepo   repository.ProjectRepository
+	ipChecker     IPCheckerService
 }
 
-func NewAnalyticsService(analyticsRepo repository.AnalyticsRepository, projectRepo repository.ProjectRepository) AnalyticsService {
+func NewAnalyticsService(analyticsRepo repository.AnalyticsRepository, projectRepo repository.ProjectRepository, ipChecker IPCheckerService) AnalyticsService {
 	return &analyticsService{
 		analyticsRepo: analyticsRepo,
 		projectRepo:   projectRepo,
+		ipChecker:     ipChecker,
 	}
 }
 
@@ -40,7 +42,23 @@ func (s *analyticsService) RecordVisit(projectIDStr string, guestName, source, u
 		IPAddress:  ipAddress,
 	}
 
-	return s.analyticsRepo.CreateVisit(visit)
+	err = s.analyticsRepo.CreateVisit(visit)
+	if err != nil {
+		return err
+	}
+
+	// Lazily resolve IP to Country in a goroutine
+	if ipAddress != "" && s.ipChecker != nil {
+		go func(v *models.ProjectVisit) {
+			country, err := s.ipChecker.GetCountryFromIP(v.IPAddress)
+			if err == nil && country != "" {
+				v.Country = &country
+				_ = s.analyticsRepo.UpdateVisit(v)
+			}
+		}(visit)
+	}
+
+	return nil
 }
 
 func (s *analyticsService) GetProjectAnalytics(projectIDStr string, userID uint) (map[string]interface{}, error) {

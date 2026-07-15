@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -12,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dhanuprys/momenu-backend-fiber/internal/config"
+	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 )
 
@@ -24,6 +30,8 @@ var (
 	ErrInvalidFileType = errors.New("invalid file type")
 	ErrFileTooLarge    = errors.New("file is too large")
 	ErrQuotaExceeded   = errors.New("quota exceeded")
+	ErrNotLandscape    = errors.New("image must be landscape")
+	ErrImageTooLarge   = errors.New("image dimensions too large")
 )
 
 var allowedImageTypes = map[string]bool{
@@ -39,12 +47,13 @@ var allowedVideoTypes = map[string]bool{
 }
 
 type FileRecordInfo struct {
-	URL          string
-	FilePath     string
-	OriginalName string
-	ContentType  string
-	Size         int64
-	MediaType    string
+	URL           string
+	FilePath      string
+	OriginalName  string
+	ContentType   string
+	Size          int64
+	OptimizedSize *int64
+	MediaType     string
 }
 
 type QuotaLimitReader struct {
@@ -233,6 +242,90 @@ func StreamFile(src io.Reader, originalFilename string, subdir string, mediaType
 		ContentType:  contentType,
 		Size:         written,
 		MediaType:    mediaType,
+	}, nil
+}
+
+func ProcessThumbnail(src io.Reader, originalFilename string, subdir string, maxAllowedSize int64) (*FileRecordInfo, error) {
+	// 1. Enforce quota limits
+	limitReader := &QuotaLimitReader{
+		R:         src,
+		Remaining: maxAllowedSize,
+	}
+
+	// 2. Read entire file into memory to get exact original size
+	buffer, err := io.ReadAll(limitReader)
+	if err != nil {
+		if err == ErrQuotaExceeded {
+			return nil, ErrFileTooLarge
+		}
+		return nil, err
+	}
+	originalSize := int64(len(buffer))
+
+	// 3. Prevent Decompression Bombs (OOM) by checking dimensions before fully decoding
+	imgConfig, _, err := image.DecodeConfig(bytes.NewReader(buffer))
+	if err != nil {
+		return nil, ErrInvalidFileType
+	}
+	// Limit dimensions to 8192x8192 (~268MB uncompressed max)
+	if imgConfig.Width > 8192 || imgConfig.Height > 8192 {
+		return nil, ErrImageTooLarge
+	}
+
+	// 4. Decode image safely from buffer
+	img, err := imaging.Decode(bytes.NewReader(buffer))
+	if err != nil {
+		return nil, ErrInvalidFileType
+	}
+
+	// 5. Check if it's landscape
+	bounds := img.Bounds()
+	if bounds.Dy() > bounds.Dx() {
+		return nil, ErrNotLandscape
+	}
+
+	// 4. Crop and resize to exactly 1200x630 (Standard OG Image)
+	img = imaging.Fill(img, 1200, 630, imaging.Center, imaging.Lanczos)
+
+	// 5. Generate filename and save
+	shortID := strings.Split(uuid.New().String(), "-")[0]
+	filename := fmt.Sprintf("%d_%s.jpg", time.Now().UnixNano(), shortID)
+	
+	uploadDir := filepath.Join(".", "uploads", subdir)
+	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	dstPath := filepath.Join(uploadDir, filename)
+	
+	// 7. Save as JPEG with centralized configured quality
+	quality := 80
+	if config.AppConfig != nil && config.AppConfig.ImageOptimizationQuality > 0 {
+		quality = int(config.AppConfig.ImageOptimizationQuality)
+	}
+
+	err = imaging.Save(img, dstPath, imaging.JPEGQuality(quality))
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get final written size
+	fileInfo, err := os.Stat(dstPath)
+	if err != nil {
+		return nil, err
+	}
+	written := fileInfo.Size()
+
+	publicURL := fmt.Sprintf("/uploads/%s/%s", subdir, filename)
+	
+	return &FileRecordInfo{
+		URL:           publicURL,
+		FilePath:      dstPath,
+		OriginalName:  originalFilename,
+		ContentType:   "image/jpeg",
+		Size:          originalSize,
+		OptimizedSize: &written,
+		MediaType:     "image",
 	}, nil
 }
 

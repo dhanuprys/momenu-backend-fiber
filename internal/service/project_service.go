@@ -16,7 +16,7 @@ import (
 
 type ProjectService interface {
 	CreateProject(userID uint, title string, themeID string, musicID *uint, payload json.RawMessage) (*models.Project, []response.ValidationError, error)
-	GetProjectsByUserID(userID uint, page, limit int) ([]models.Project, int64, error)
+	GetProjectsByUserID(userID uint, page, limit int, status string) ([]models.Project, int64, error)
 	GetProjectByID(id uuid.UUID) (*models.Project, error)
 	GetProjectBySlug(slug string) (*models.Project, error)
 	UpdateProject(projectID uuid.UUID, title string, slug string, payload json.RawMessage, sharingThumbnail string, musicID *uint) (*models.Project, []response.ValidationError, error)
@@ -106,8 +106,8 @@ func (s *projectService) CreateProject(userID uint, title string, themeID string
 	return p, nil, err
 }
 
-func (s *projectService) GetProjectsByUserID(userID uint, page, limit int) ([]models.Project, int64, error) {
-	return s.projectRepo.GetProjectsByUserID(userID, page, limit)
+func (s *projectService) GetProjectsByUserID(userID uint, page, limit int, status string) ([]models.Project, int64, error) {
+	return s.projectRepo.GetProjectsByUserID(userID, page, limit, status)
 }
 
 func (s *projectService) GetProjectByID(id uuid.UUID) (*models.Project, error) {

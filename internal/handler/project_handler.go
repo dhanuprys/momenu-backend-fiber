@@ -82,7 +82,9 @@ func (h *ProjectHandler) List(c fiber.Ctx) error {
 		limit = 10
 	}
 
-	projects, total, err := h.projectService.GetProjectsByUserID(userID, page, limit)
+	status := c.Query("status", "")
+
+	projects, total, err := h.projectService.GetProjectsByUserID(userID, page, limit, status)
 	if err != nil {
 		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to retrieve projects", "INTERNAL_SERVER_ERROR")
 	}

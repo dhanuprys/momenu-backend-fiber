@@ -398,6 +398,7 @@ type ProjectVisit struct {
 	UserAgent  string         `json:"user_agent"`
 	DeviceType string         `json:"device_type"`
 	IPAddress  string         `json:"ip_address"`
+	Country    *string        `json:"country,omitempty"`
 	CreatedAt time.Time      `gorm:"index" json:"created_at"`
 }
 

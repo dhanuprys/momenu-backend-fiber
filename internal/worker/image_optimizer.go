@@ -4,9 +4,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/dhanuprys/momenu-backend-fiber/internal/config"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
 	"go.uber.org/zap"
@@ -63,7 +65,8 @@ func optimizeSingleImage(db *gorm.DB, fileRepo repository.FileRecordRepository, 
 	outURL := strings.TrimSuffix(record.URL, ext) + ".webp"
 
 	// Run cwebp
-	cmd := exec.Command("cwebp", "-q", "80", inputPath, "-o", outPath)
+	qualityStr := strconv.FormatInt(config.AppConfig.ImageOptimizationQuality, 10)
+	cmd := exec.Command("cwebp", "-q", qualityStr, inputPath, "-o", outPath)
 	if err := cmd.Run(); err != nil {
 		logger.Error("cwebp failed", zap.String("input", inputPath), zap.Error(err))
 		return
