@@ -22,14 +22,16 @@ type shareService struct {
 	shareRepo     repository.ShareRepository
 	projectRepo   repository.ProjectRepository
 	rsvpRepo      repository.RSVPRepository
+	guestbookRepo repository.GuestbookRepository
 	analyticsRepo repository.AnalyticsRepository
 }
 
-func NewShareService(shareRepo repository.ShareRepository, projectRepo repository.ProjectRepository, rsvpRepo repository.RSVPRepository, analyticsRepo repository.AnalyticsRepository) ShareService {
+func NewShareService(shareRepo repository.ShareRepository, projectRepo repository.ProjectRepository, rsvpRepo repository.RSVPRepository, guestbookRepo repository.GuestbookRepository, analyticsRepo repository.AnalyticsRepository) ShareService {
 	return &shareService{
 		shareRepo:     shareRepo,
 		projectRepo:   projectRepo,
 		rsvpRepo:      rsvpRepo,
+		guestbookRepo: guestbookRepo,
 		analyticsRepo: analyticsRepo,
 	}
 }
@@ -117,6 +119,9 @@ func (s *shareService) GetSharedData(sessionID string) (*models.Project, map[str
 	deviceStats, _ := s.analyticsRepo.GetVisitsByDevice(session.ProjectID)
 	recentVisits, _ := s.analyticsRepo.GetRecentVisits(session.ProjectID, 10)
 
+	// Fetch Guestbook
+	wishes, _, _ := s.guestbookRepo.GetByProjectID(session.ProjectID, 1, 1000)
+
 	analyticsSummary := map[string]interface{}{
 		"total_rsvps":   len(rsvps),
 		"rsvps":         rsvps,
@@ -133,6 +138,7 @@ func (s *shareService) GetSharedData(sessionID string) (*models.Project, map[str
 		"source_stats":  sourceStats,
 		"device_stats":  deviceStats,
 		"recent_visits": recentVisits,
+		"wishes":        wishes,
 	}
 
 	return project, analyticsSummary, nil

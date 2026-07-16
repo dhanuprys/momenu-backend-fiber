@@ -24,6 +24,7 @@ type GiftRegistryRequest struct {
 	AccountNumber  string `json:"account_number"`
 	AccountName    string `json:"account_name"`
 	QRCodeImage    string `json:"qr_code_image"`
+	PhoneNumber    string `json:"phone_number"`
 	MailingAddress string `json:"mailing_address"`
 }
 
@@ -50,11 +51,11 @@ func (h *GiftRegistryHandler) Create(c fiber.Ctx) error {
 		return response.JSONValidationError(c, errors)
 	}
 
-	registry, err := h.giftRegistryService.Create(project.ID, req.Type, req.ProviderName, req.AccountNumber, req.AccountName, req.QRCodeImage, req.MailingAddress)
+	registry, err := h.giftRegistryService.Create(project.ID, req.Type, req.ProviderName, req.AccountNumber, req.AccountName, req.QRCodeImage, req.PhoneNumber, req.MailingAddress)
 	if err != nil {
 		if err.Error() == "invalid gift registry type" ||
 			err.Error() == "bank registry requires account_number and account_name" ||
-			err.Error() == "ewallet registry requires a QRIS image and provider_name" ||
+			err.Error() == "ewallet registry requires either a QRIS image or a phone_number, and provider_name" ||
 			err.Error() == "physical registry requires mailing_address" {
 			return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "BAD_REQUEST")
 		}
@@ -82,14 +83,14 @@ func (h *GiftRegistryHandler) Update(c fiber.Ctx) error {
 		return response.JSONValidationError(c, errors)
 	}
 
-	registry, err := h.giftRegistryService.Update(uint(registryID), project.ID, req.Type, req.ProviderName, req.AccountNumber, req.AccountName, req.QRCodeImage, req.MailingAddress)
+	registry, err := h.giftRegistryService.Update(uint(registryID), project.ID, req.Type, req.ProviderName, req.AccountNumber, req.AccountName, req.QRCodeImage, req.PhoneNumber, req.MailingAddress)
 	if err != nil {
 		if err.Error() == "gift registry not found or does not belong to project" {
 			return response.JSONError(c, fiber.StatusNotFound, err.Error(), "NOT_FOUND")
 		}
 		if err.Error() == "invalid gift registry type" ||
 			err.Error() == "bank registry requires account_number and account_name" ||
-			err.Error() == "ewallet registry requires a QRIS image and provider_name" ||
+			err.Error() == "ewallet registry requires either a QRIS image or a phone_number, and provider_name" ||
 			err.Error() == "physical registry requires mailing_address" {
 			return response.JSONError(c, fiber.StatusBadRequest, err.Error(), "BAD_REQUEST")
 		}

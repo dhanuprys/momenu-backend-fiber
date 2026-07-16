@@ -10,8 +10,8 @@ import (
 
 type GiftRegistryService interface {
 	GetByProjectID(projectID uuid.UUID) ([]models.GiftRegistry, error)
-	Create(projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, mailingAddress string) (*models.GiftRegistry, error)
-	Update(id uint, projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, mailingAddress string) (*models.GiftRegistry, error)
+	Create(projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, phoneNumber string, mailingAddress string) (*models.GiftRegistry, error)
+	Update(id uint, projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, phoneNumber string, mailingAddress string) (*models.GiftRegistry, error)
 	Delete(id uint, projectID uuid.UUID) error
 }
 
@@ -27,15 +27,15 @@ func (s *giftRegistryService) GetByProjectID(projectID uuid.UUID) ([]models.Gift
 	return s.repo.GetByProjectID(projectID)
 }
 
-func validateGiftRegistryFields(t models.GiftRegistryType, provider, accNum, accName, qrCodeImage, address string) error {
+func validateGiftRegistryFields(t models.GiftRegistryType, provider, accNum, accName, qrCodeImage, phoneNumber, address string) error {
 	switch t {
 	case models.GiftRegistryTypeBank:
 		if accNum == "" || accName == "" {
 			return errors.New("bank registry requires account_number and account_name")
 		}
 	case models.GiftRegistryTypeEWallet:
-		if qrCodeImage == "" || provider == "" {
-			return errors.New("ewallet registry requires a QRIS image and provider_name")
+		if (qrCodeImage == "" && phoneNumber == "") || provider == "" {
+			return errors.New("ewallet registry requires either a QRIS image or a phone_number, and provider_name")
 		}
 	case models.GiftRegistryTypePhysical:
 		if address == "" {
@@ -47,9 +47,9 @@ func validateGiftRegistryFields(t models.GiftRegistryType, provider, accNum, acc
 	return nil
 }
 
-func (s *giftRegistryService) Create(projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, mailingAddress string) (*models.GiftRegistry, error) {
+func (s *giftRegistryService) Create(projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, phoneNumber string, mailingAddress string) (*models.GiftRegistry, error) {
 	t := models.GiftRegistryType(registryType)
-	if err := validateGiftRegistryFields(t, providerName, accountNumber, accountName, qrCodeImage, mailingAddress); err != nil {
+	if err := validateGiftRegistryFields(t, providerName, accountNumber, accountName, qrCodeImage, phoneNumber, mailingAddress); err != nil {
 		return nil, err
 	}
 
@@ -60,6 +60,7 @@ func (s *giftRegistryService) Create(projectID uuid.UUID, registryType string, p
 		AccountNumber:  accountNumber,
 		AccountName:    accountName,
 		QRCodeImage:    qrCodeImage,
+		PhoneNumber:    phoneNumber,
 		MailingAddress: mailingAddress,
 	}
 
@@ -69,7 +70,7 @@ func (s *giftRegistryService) Create(projectID uuid.UUID, registryType string, p
 	return registry, nil
 }
 
-func (s *giftRegistryService) Update(id uint, projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, mailingAddress string) (*models.GiftRegistry, error) {
+func (s *giftRegistryService) Update(id uint, projectID uuid.UUID, registryType string, providerName string, accountNumber string, accountName string, qrCodeImage string, phoneNumber string, mailingAddress string) (*models.GiftRegistry, error) {
 	registry, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -79,7 +80,7 @@ func (s *giftRegistryService) Update(id uint, projectID uuid.UUID, registryType 
 	}
 
 	t := models.GiftRegistryType(registryType)
-	if err := validateGiftRegistryFields(t, providerName, accountNumber, accountName, qrCodeImage, mailingAddress); err != nil {
+	if err := validateGiftRegistryFields(t, providerName, accountNumber, accountName, qrCodeImage, phoneNumber, mailingAddress); err != nil {
 		return nil, err
 	}
 
@@ -88,6 +89,7 @@ func (s *giftRegistryService) Update(id uint, projectID uuid.UUID, registryType 
 	registry.AccountNumber = accountNumber
 	registry.AccountName = accountName
 	registry.QRCodeImage = qrCodeImage
+	registry.PhoneNumber = phoneNumber
 	registry.MailingAddress = mailingAddress
 
 	if err := s.repo.Update(registry); err != nil {

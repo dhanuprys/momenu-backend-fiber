@@ -74,7 +74,7 @@ func initDependencies() *deps {
 	musicService := service.NewMusicService(musicRepo)
 	ipCheckerService := service.NewIPCheckerService()
 	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo, ipCheckerService)
-	shareService := service.NewShareService(shareRepo, projectRepo, rsvpRepo, analyticsRepo)
+	shareService := service.NewShareService(shareRepo, projectRepo, rsvpRepo, guestbookRepo, analyticsRepo)
 
 	return &deps{
 		user:            handler.NewUserHandler(userService),
@@ -250,6 +250,7 @@ func registerProjectRoutes(api fiber.Router, d *deps) {
 	rsvps.Get("/stats", d.rsvp.Stats)
 	rsvps.Get("/", d.rsvp.List)
 	rsvps.Post("/", d.rsvp.OwnerUpsert)
+	rsvps.Put("/:id", d.rsvp.Update)
 	rsvps.Delete("/:id", d.rsvp.Delete)
 
 	// Guestbook

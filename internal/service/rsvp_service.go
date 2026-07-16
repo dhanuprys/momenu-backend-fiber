@@ -14,6 +14,7 @@ type RSVPService interface {
 	GetGuestByName(projectID uuid.UUID, name string) (*models.RSVP, error)
 	Upsert(projectID uuid.UUID, name string, attending bool, guestCount int) (*models.RSVP, error)
 	OwnerUpsert(projectID uuid.UUID, name string, specialMessage string, whatsapp *string) (*models.RSVP, error)
+	Update(projectID uuid.UUID, id uint, name string, specialMessage string, whatsapp *string) (*models.RSVP, error)
 	MarkAsOpened(projectID uuid.UUID, name string) error
 	Delete(projectID uuid.UUID, id uint) error
 	GetStatsByProjectID(projectID uuid.UUID) (map[string]interface{}, error)
@@ -94,6 +95,20 @@ func (s *rsvpService) OwnerUpsert(projectID uuid.UUID, name string, specialMessa
 	}
 
 	if err := s.repo.OwnerUpsert(rsvp); err != nil {
+		return nil, err
+	}
+
+	return rsvp, nil
+}
+
+func (s *rsvpService) Update(projectID uuid.UUID, id uint, name string, specialMessage string, whatsapp *string) (*models.RSVP, error) {
+	rsvp := &models.RSVP{
+		Name:           name,
+		SpecialMessage: specialMessage,
+		Whatsapp:       whatsapp,
+	}
+
+	if err := s.repo.Update(projectID, id, rsvp); err != nil {
 		return nil, err
 	}
 

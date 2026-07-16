@@ -13,6 +13,7 @@ type RSVPRepository interface {
 	GetByName(projectID uuid.UUID, name string) (*models.RSVP, error)
 	Upsert(rsvp *models.RSVP) error
 	OwnerUpsert(rsvp *models.RSVP) error
+	Update(projectID uuid.UUID, id uint, rsvp *models.RSVP) error
 	MarkAsOpened(projectID uuid.UUID, name string) error
 	Delete(projectID uuid.UUID, id uint) error
 	GetStatsByProjectID(projectID uuid.UUID) (int64, int64, int64, int64, error)
@@ -68,6 +69,16 @@ func (r *rsvpRepository) OwnerUpsert(rsvp *models.RSVP) error {
 		Columns:   []clause.Column{{Name: "project_id"}, {Name: "name"}},
 		DoUpdates: clause.AssignmentColumns([]string{"special_message", "whatsapp"}),
 	}).Create(rsvp).Error
+}
+
+func (r *rsvpRepository) Update(projectID uuid.UUID, id uint, rsvp *models.RSVP) error {
+	return r.db.Model(&models.RSVP{}).
+		Where("id = ? AND project_id = ?", id, projectID).
+		Updates(map[string]interface{}{
+			"name":            rsvp.Name,
+			"special_message": rsvp.SpecialMessage,
+			"whatsapp":        rsvp.Whatsapp,
+		}).Error
 }
 
 func (r *rsvpRepository) MarkAsOpened(projectID uuid.UUID, name string) error {

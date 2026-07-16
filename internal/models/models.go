@@ -308,6 +308,7 @@ type GiftRegistry struct {
 	AccountNumber  string           `json:"account_number"`
 	AccountName    string           `json:"account_name"`
 	QRCodeImage    string           `json:"qr_code_image"`
+	PhoneNumber    string           `json:"phone_number"` // For e-wallet
 	MailingAddress string           `json:"mailing_address"`
 	DeletedAt      gorm.DeletedAt   `gorm:"index" json:"-"`
 }

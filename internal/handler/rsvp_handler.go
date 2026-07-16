@@ -141,6 +141,33 @@ func (h *RSVPHandler) OwnerUpsert(c fiber.Ctx) error {
 	return response.JSONSuccess(c, fiber.StatusOK, "Guest added/updated successfully", rsvp, nil)
 }
 
+// Update handles the project owner manually updating a specific guest by ID
+func (h *RSVPHandler) Update(c fiber.Ctx) error {
+	project := c.Locals("project").(*models.Project)
+	idParam := c.Params("id")
+
+	id, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid guest ID", "BAD_REQUEST")
+	}
+
+	var req OwnerRSVPRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
+	}
+
+	if errors := utils.ValidateStruct(req); errors != nil {
+		return response.JSONValidationError(c, errors)
+	}
+
+	rsvp, err := h.rsvpService.Update(project.ID, uint(id), req.Name, req.SpecialMessage, req.Whatsapp)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to update guest", "INTERNAL_SERVER_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "Guest updated successfully", rsvp, nil)
+}
+
 // PublicGetGuest handles retrieving a specific guest's RSVP record (for silent sync)
 func (h *RSVPHandler) PublicGetGuest(c fiber.Ctx) error {
 	slug := c.Params("slug")
