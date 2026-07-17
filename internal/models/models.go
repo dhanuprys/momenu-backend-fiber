@@ -104,8 +104,11 @@ var EventTypeFieldSchemas = map[EventType][]FieldGroup{
 			GroupName: "Informasi Mempelai Pria",
 			Fields: []FieldDefinition{
 				{Key: "nama_mempelai_pria", Label: "Nama Mempelai Pria", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama lengkap mempelai pria", Validations: []string{"min:2", "max:100"}},
+				{Key: "nama_panggilan_pria", Label: "Nama Panggilan Pria", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama panggilan pria", Validations: []string{"min:2", "max:50"}},
 				{Key: "nama_ayah_pria", Label: "Nama Ayah Mempelai Pria", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama ayah mempelai pria", Validations: []string{"min:2", "max:100"}},
 				{Key: "nama_ibu_pria", Label: "Nama Ibu Mempelai Pria", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama ibu mempelai pria", Validations: []string{"min:2", "max:100"}},
+				{Key: "anak_ke_pria", Label: "Anak Ke", Type: FieldTypeNumber, Required: false, Validations: []string{"min:1", "max:20"}},
+				{Key: "bersaudara_pria", Label: "Dari Berapa Bersaudara", Type: FieldTypeNumber, Required: false, Validations: []string{"min:1", "max:20"}},
 				{Key: "alamat_pria", Label: "Alamat Mempelai Pria", Type: FieldTypeText, Required: false, Placeholder: "Masukkan alamat mempelai pria", Validations: []string{"max:300"}},
 			},
 		},
@@ -113,8 +116,11 @@ var EventTypeFieldSchemas = map[EventType][]FieldGroup{
 			GroupName: "Informasi Mempelai Wanita",
 			Fields: []FieldDefinition{
 				{Key: "nama_mempelai_wanita", Label: "Nama Mempelai Wanita", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama lengkap mempelai wanita", Validations: []string{"min:2", "max:100"}},
+				{Key: "nama_panggilan_wanita", Label: "Nama Panggilan Wanita", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama panggilan wanita", Validations: []string{"min:2", "max:50"}},
 				{Key: "nama_ayah_wanita", Label: "Nama Ayah Mempelai Wanita", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama ayah mempelai wanita", Validations: []string{"min:2", "max:100"}},
 				{Key: "nama_ibu_wanita", Label: "Nama Ibu Mempelai Wanita", Type: FieldTypeString, Required: true, Placeholder: "Masukkan nama ibu mempelai wanita", Validations: []string{"min:2", "max:100"}},
+				{Key: "anak_ke_wanita", Label: "Anak Ke", Type: FieldTypeNumber, Required: false, Validations: []string{"min:1", "max:20"}},
+				{Key: "bersaudara_wanita", Label: "Dari Berapa Bersaudara", Type: FieldTypeNumber, Required: false, Validations: []string{"min:1", "max:20"}},
 				{Key: "alamat_wanita", Label: "Alamat Mempelai Wanita", Type: FieldTypeText, Required: false, Placeholder: "Masukkan alamat mempelai wanita", Validations: []string{"max:300"}},
 			},
 		},
