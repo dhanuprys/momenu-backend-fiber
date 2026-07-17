@@ -11,8 +11,8 @@ import (
 
 type ScheduleService interface {
 	GetByProjectID(projectID uuid.UUID) ([]models.Schedule, error)
-	Create(projectID uuid.UUID, title string, startTime time.Time, endTime time.Time, timezone string, location string, mapURL string) (*models.Schedule, error)
-	Update(id uint, projectID uuid.UUID, title string, startTime time.Time, endTime time.Time, timezone string, location string, mapURL string) (*models.Schedule, error)
+	Create(projectID uuid.UUID, title string, startTime time.Time, endTime *time.Time, timezone string, location string, mapURL string) (*models.Schedule, error)
+	Update(id uint, projectID uuid.UUID, title string, startTime time.Time, endTime *time.Time, timezone string, location string, mapURL string) (*models.Schedule, error)
 	Delete(id uint, projectID uuid.UUID) error
 }
 
@@ -28,7 +28,7 @@ func (s *scheduleService) GetByProjectID(projectID uuid.UUID) ([]models.Schedule
 	return s.repo.GetByProjectID(projectID)
 }
 
-func (s *scheduleService) Create(projectID uuid.UUID, title string, startTime time.Time, endTime time.Time, timezone string, location string, mapURL string) (*models.Schedule, error) {
+func (s *scheduleService) Create(projectID uuid.UUID, title string, startTime time.Time, endTime *time.Time, timezone string, location string, mapURL string) (*models.Schedule, error) {
 	schedule := &models.Schedule{
 		ProjectID: projectID,
 		Title:     title,
@@ -45,7 +45,7 @@ func (s *scheduleService) Create(projectID uuid.UUID, title string, startTime ti
 	return schedule, nil
 }
 
-func (s *scheduleService) Update(id uint, projectID uuid.UUID, title string, startTime time.Time, endTime time.Time, timezone string, location string, mapURL string) (*models.Schedule, error) {
+func (s *scheduleService) Update(id uint, projectID uuid.UUID, title string, startTime time.Time, endTime *time.Time, timezone string, location string, mapURL string) (*models.Schedule, error) {
 	schedule, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err

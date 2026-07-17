@@ -22,7 +22,7 @@ func NewScheduleHandler(scheduleService service.ScheduleService) *ScheduleHandle
 type ScheduleRequest struct {
 	Title     string    `json:"title" validate:"required"`
 	StartTime time.Time `json:"start_time" validate:"required"`
-	EndTime   time.Time `json:"end_time"`
+	EndTime   *time.Time `json:"end_time"`
 	Timezone  string    `json:"timezone" validate:"required"`
 	Location  string    `json:"location"`
 	MapURL    string    `json:"map_url"`

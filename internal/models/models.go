@@ -298,7 +298,7 @@ type Schedule struct {
 	ProjectID uuid.UUID `gorm:"type:uuid;not null;index" json:"project_id"`
 	Title     string    `gorm:"not null" json:"title"` // e.g., "Morning Ceremony"
 	StartTime time.Time `gorm:"not null" json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
+	EndTime   *time.Time `json:"end_time"`
 	Timezone  string    `gorm:"not null" json:"timezone"`
 	Location  string         `json:"location"`
 	MapURL    string         `json:"map_url"`
