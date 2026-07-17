@@ -208,7 +208,12 @@ func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug s
 		return nil, nil, err
 	}
 
-	return project, nil, nil
+	updatedProject, err := s.projectRepo.GetProjectByID(project.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return updatedProject, nil, nil
 }
 
 func (s *projectService) UpdateStatus(projectID uuid.UUID, status models.ProjectStatus, userID uint) (*models.Project, error) {

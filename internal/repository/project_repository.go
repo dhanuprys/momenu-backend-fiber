@@ -4,6 +4,7 @@ import (
 	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ProjectRepository interface {
@@ -107,7 +108,7 @@ func (r *projectRepository) GetProjectOGMetadata(slug string) (*models.Project, 
 }
 
 func (r *projectRepository) UpdateProject(project *models.Project) error {
-	return r.db.Save(project).Error
+	return r.db.Omit(clause.Associations).Save(project).Error
 }
 
 func (r *projectRepository) DeleteProject(id uuid.UUID) error {
