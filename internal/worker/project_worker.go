@@ -33,6 +33,7 @@ func InitWorker() {
 	// Start Storage Workers
 	InitImageOptimizer(database.DB, fileRepo, logger.Log)
 	InitOrphanCleaner(database.DB, fileRepo, logger.Log)
+	InitCacheWarmer(database.DB, logger.Log)
 }
 
 // IncrementUpdateCount queues a project to have its update counter incremented.

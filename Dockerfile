@@ -15,6 +15,7 @@ COPY . .
 
 # Build the Go app
 # CGO_ENABLED=0 is used to create a statically linked binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o cache-warmer ./cmd/cache-warmer
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
 
 # Final stage
@@ -30,6 +31,7 @@ WORKDIR /app
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/cache-warmer .
 
 # Create uploads directory for static files
 RUN mkdir -p uploads

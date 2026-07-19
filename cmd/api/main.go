@@ -133,6 +133,9 @@ func setupStaticFiles(app *fiber.App) {
 func serveStaticFile(c fiber.Ctx, baseDir string) error {
 	requested := c.Params("*")
 	c.Set("Cross-Origin-Resource-Policy", "cross-origin")
+	
+	// Cache for 1 year (31536000 seconds)
+	c.Set("Cache-Control", "public, max-age=31536000, immutable")
 
 	// Prevent directory traversal
 	cleaned := filepath.Clean(requested)

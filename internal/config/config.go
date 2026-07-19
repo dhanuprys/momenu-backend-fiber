@@ -20,6 +20,7 @@ type Config struct {
 	TurnstileSecret           string
 	DefaultProjectDiskQuotaMB int64
 	ImageOptimizationQuality  int64
+	CacheWarmerBaseURL        string
 }
 
 var AppConfig *Config
@@ -42,6 +43,7 @@ func Load() {
 		TurnstileSecret:           getEnv("TURNSTILE_SECRET_KEY", ""),
 		DefaultProjectDiskQuotaMB: getEnvAsInt64("DEFAULT_PROJECT_DISK_QUOTA_MB", 100),
 		ImageOptimizationQuality:  getEnvAsInt64("IMAGE_OPTIMIZATION_QUALITY", 80),
+		CacheWarmerBaseURL:        getEnv("CACHE_WARMER_BASE_URL", ""),
 	}
 
 	if AppConfig.Env == "production" && AppConfig.JWTSecret == "supersecretkey" {

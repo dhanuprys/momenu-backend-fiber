@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
+	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"github.com/dhanuprys/momenu-backend-fiber/pkg/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -66,31 +67,31 @@ func isReferenced(db *gorm.DB, url string, logger *zap.Logger) bool {
 	var count int64
 
 	// 1. Check media_mappings
-	db.Table("media_mappings").Where("url = ?", url).Count(&count)
+	db.Model(&models.MediaMapping{}).Where("url = ?", url).Count(&count)
 	if count > 0 {
 		return true
 	}
 
 	// 2. Check projects sharing_thumbnail
-	db.Table("projects").Where("sharing_thumbnail = ?", url).Count(&count)
+	db.Model(&models.Project{}).Where("sharing_thumbnail = ?", url).Count(&count)
 	if count > 0 {
 		return true
 	}
 
 	// 3. Check gift_registries qr_code_image
-	db.Table("gift_registries").Where("qr_code_image = ?", url).Count(&count)
+	db.Model(&models.GiftRegistry{}).Where("qr_code_image = ?", url).Count(&count)
 	if count > 0 {
 		return true
 	}
 
 	// 4. Check musics file_path or cover_image
-	db.Table("musics").Where("file_path = ? OR cover_image = ?", url, url).Count(&count)
+	db.Model(&models.Music{}).Where("file_path = ? OR cover_image = ?", url, url).Count(&count)
 	if count > 0 {
 		return true
 	}
 
 	// 5. Check projects payload (JSON)
-	db.Table("projects").Where("payload::text LIKE ?", "%"+url+"%").Count(&count)
+	db.Model(&models.Project{}).Where("payload::text LIKE ?", "%"+url+"%").Count(&count)
 	if count > 0 {
 		return true
 	}
