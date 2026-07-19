@@ -22,7 +22,7 @@ type UpsertStyleOverrideRequest struct {
 }
 
 type StyleOverrideItem struct {
-	SlotKey    string         `json:"slot_key" validate:"required"`
+	SlotKey    string         `json:"slot_key" validate:"required,max=100"`
 	Properties datatypes.JSON `json:"properties"`
 }
 

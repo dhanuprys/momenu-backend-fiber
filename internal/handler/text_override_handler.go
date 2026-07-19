@@ -21,13 +21,13 @@ type UpsertTextOverrideRequest struct {
 }
 
 type TextOverrideItem struct {
-	SlotKey    string `json:"slot_key" validate:"required"`
-	Value      string `json:"value"`
+	SlotKey    string `json:"slot_key" validate:"required,max=100"`
+	Value      string `json:"value" validate:"max=5000"`
 	Bold       bool   `json:"bold"`
 	Italic     bool   `json:"italic"`
 	Underline  bool   `json:"underline"`
-	TextAlign  string `json:"text_align"`
-	FontFamily string `json:"font_family"`
+	TextAlign  string `json:"text_align" validate:"max=20"`
+	FontFamily string `json:"font_family" validate:"max=100"`
 }
 
 func (h *TextOverrideHandler) List(c fiber.Ctx) error {
