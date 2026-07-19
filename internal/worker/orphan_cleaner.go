@@ -1,6 +1,9 @@
 package worker
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/dhanuprys/momenu-backend-fiber/internal/repository"
@@ -60,6 +63,64 @@ func processOrphanFiles(db *gorm.DB, fileRepo repository.FileRecordRepository, l
 				logger.Warn("Failed to hard delete orphan record", zap.Uint("id", record.ID), zap.Error(err))
 			}
 		}
+	}
+
+	// 2. FS-First Reconciliation to catch ghost files
+	processGhostFiles(db, logger)
+}
+
+func processGhostFiles(db *gorm.DB, logger *zap.Logger) {
+	uploadsDir := "./uploads"
+
+	// Check if dir exists
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		return
+	}
+
+	cutoffTime := time.Now().Add(-24 * time.Hour)
+
+	err := filepath.Walk(uploadsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip errors on specific files
+		}
+
+		if info.IsDir() {
+			return nil // skip directories
+		}
+
+		// Skip hidden files (e.g., .gitignore, .DS_Store)
+		if strings.HasPrefix(filepath.Base(path), ".") {
+			return nil
+		}
+
+		// Only process files older than 24h
+		if info.ModTime().After(cutoffTime) {
+			return nil
+		}
+
+		// Convert OS path (e.g., "uploads/media/123.jpg") into URL format ("/uploads/media/123.jpg")
+		relPath := filepath.ToSlash(path)
+		if !strings.HasPrefix(relPath, "/") {
+			relPath = "/" + relPath
+		}
+
+		// Check if this URL exists in file_records (ignores soft-deleted rows by default)
+		var count int64
+		db.Model(&models.FileRecord{}).Where("url = ?", relPath).Count(&count)
+
+		if count == 0 {
+			// It's a ghost file! Delete it.
+			logger.Info("Deleting ghost file from FS", zap.String("path", path))
+			if err := os.Remove(path); err != nil {
+				logger.Warn("Failed to delete ghost file", zap.String("path", path), zap.Error(err))
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("Error walking uploads directory for ghost files", zap.Error(err))
 	}
 }
 
