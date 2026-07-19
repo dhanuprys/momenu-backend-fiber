@@ -137,6 +137,7 @@ func registerAuthRoutes(api fiber.Router, d *deps) {
 	auth.Post("/refresh", d.user.RefreshToken)
 	auth.Get("/me", middleware.AuthRequired, d.user.Me)
 	auth.Put("/me", middleware.AuthRequired, d.user.UpdateProfile)
+	auth.Put("/me/password", middleware.AuthRequired, d.user.ChangePassword)
 }
 
 // ─── Public Routes (no auth) ────────────────────────────────────────────────

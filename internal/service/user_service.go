@@ -19,6 +19,7 @@ type UserService interface {
 	GoogleLogin(ctx context.Context, code string, oauthConf *oauth2.Config) (string, string, *models.User, error)
 	RefreshToken(refreshToken string) (string, string, *models.User, error)
 	UpdateUserProfile(id uint, name string) (*models.User, error)
+	ChangePassword(id uint, oldPassword, newPassword string) error
 }
 
 type userService struct {
@@ -223,3 +224,36 @@ func (s *userService) UpdateUserProfile(id uint, name string) (*models.User, err
 	return user, nil
 }
 
+
+func (s *userService) ChangePassword(id uint, oldPassword, newPassword string) error {
+	user, err := s.repo.GetUserByID(id)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	// For Google login users without a password
+	if user.Password == "" {
+		return errors.New("cannot change password for OAuth user")
+	}
+
+	// Verify old password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
+		return errors.New("invalid old password")
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user.Password = string(hashedPassword)
+	if err := s.repo.UpdateUser(user); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -223,3 +223,38 @@ func (h *UserHandler) RefreshToken(c fiber.Ctx) error {
 		"user":          user,
 	}, nil)
 }
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=6"`
+}
+
+// ChangePassword handles updating user password
+func (h *UserHandler) ChangePassword(c fiber.Ctx) error {
+	var req ChangePasswordRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
+	}
+
+	if errors := utils.ValidateStruct(req); errors != nil {
+		return response.JSONValidationError(c, errors)
+	}
+
+	// Get user ID from locals (set by auth middleware)
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return response.JSONError(c, fiber.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+	}
+
+	if err := h.userService.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+		if err.Error() == "invalid old password" {
+			return response.JSONError(c, fiber.StatusBadRequest, "Kata sandi lama salah", "INVALID_PASSWORD")
+		}
+		if err.Error() == "cannot change password for OAuth user" {
+			return response.JSONError(c, fiber.StatusBadRequest, "Akun Google tidak dapat mengubah kata sandi", "INVALID_PROVIDER")
+		}
+		return response.JSONError(c, fiber.StatusInternalServerError, "Gagal mengubah kata sandi", "INTERNAL_ERROR")
+	}
+
+	return response.JSONSuccess[any](c, fiber.StatusOK, "Kata sandi berhasil diubah", nil, nil)
+}
