@@ -21,10 +21,13 @@ type UpsertTextOverrideRequest struct {
 }
 
 type TextOverrideItem struct {
-	SlotKey string `json:"slot_key" validate:"required"`
-	Value   string `json:"value"`
-	Bold    bool   `json:"bold"`
-	Italic  bool   `json:"italic"`
+	SlotKey    string `json:"slot_key" validate:"required"`
+	Value      string `json:"value"`
+	Bold       bool   `json:"bold"`
+	Italic     bool   `json:"italic"`
+	Underline  bool   `json:"underline"`
+	TextAlign  string `json:"text_align"`
+	FontFamily string `json:"font_family"`
 }
 
 func (h *TextOverrideHandler) List(c fiber.Ctx) error {
@@ -70,18 +73,21 @@ func (h *TextOverrideHandler) Upsert(c fiber.Ctx) error {
 	var dbOverrides []models.TextOverride
 	for _, item := range req.Overrides {
 		dbOverrides = append(dbOverrides, models.TextOverride{
-			ProjectID: project.ID,
-			SlotKey:   item.SlotKey,
-			Value:     item.Value,
-			Bold:      item.Bold,
-			Italic:    item.Italic,
+			ProjectID:  project.ID,
+			SlotKey:    item.SlotKey,
+			Value:      item.Value,
+			Bold:       item.Bold,
+			Italic:     item.Italic,
+			Underline:  item.Underline,
+			TextAlign:  item.TextAlign,
+			FontFamily: item.FontFamily,
 		})
 	}
 
 	// Use GORM Clauses for Upsert (ON CONFLICT)
 	err := database.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "project_id"}, {Name: "slot_key"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "bold", "italic", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"value", "bold", "italic", "underline", "text_align", "font_family", "updated_at"}),
 	}).Create(&dbOverrides).Error
 
 	if err != nil {

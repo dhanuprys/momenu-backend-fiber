@@ -357,15 +357,19 @@ type Guestbook struct {
 
 // TextOverride - per-project text content customization
 type TextOverride struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	ProjectID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_text_override_slot" json:"project_id"`
-	SlotKey   string    `gorm:"not null;uniqueIndex:idx_text_override_slot" json:"slot_key"`
-	Value     string    `gorm:"type:text;not null" json:"value"`
-	Bold      bool      `gorm:"default:false" json:"bold"`
-	Italic    bool      `gorm:"default:false" json:"italic"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	ProjectID  uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_text_override_slot" json:"project_id"`
+	SlotKey    string    `gorm:"not null;uniqueIndex:idx_text_override_slot" json:"slot_key"`
+	Value      string    `gorm:"type:text;not null" json:"value"`
+	Bold       bool      `gorm:"default:false" json:"bold"`
+	Italic     bool      `gorm:"default:false" json:"italic"`
+	Underline  bool      `gorm:"default:false" json:"underline"`
+	TextAlign  string    `gorm:"default:''" json:"text_align"`
+	FontFamily string    `gorm:"default:''" json:"font_family"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
 
 // StyleOverride - per-project container/visual customization
 type StyleOverride struct {
