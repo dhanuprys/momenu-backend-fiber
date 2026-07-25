@@ -83,4 +83,22 @@ var ThemesData = []models.Theme{
 			{Key: "speaker_photos", Label: "Foto Pembicara", MediaType: models.MediaTypeImage, MaxFiles: 5},
 		}),
 	},
+	{
+		ID:          "pernikahan_glamour_1",
+		Name:        "Glassmorphism Wedding",
+		EventType:   models.EventTypePernikahan,
+		Description: "Tema pernikahan modern dan elegan bergaya glassmorphism.",
+		Thumbnail:   "https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1770&auto=format&fit=crop",
+		Price:       pricePtr(80000),
+		MediaBuckets: mustJSON([]models.MediaBucket{
+			{Key: "cover_photo", Label: "Foto Sampul Utama (Cover)", MediaType: models.MediaTypeImage, MaxFiles: 1},
+			{Key: "hero_photo", Label: "Foto Latar Hero", MediaType: models.MediaTypeImage, MaxFiles: 5},
+			{Key: "parallax_bg", Label: "Latar Parallax Slideshow", MediaType: models.MediaTypeImage, MaxFiles: 5},
+			{Key: "groom_photo", Label: "Foto Mempelai Pria", MediaType: models.MediaTypeImage, MaxFiles: 1},
+			{Key: "bride_photo", Label: "Foto Mempelai Wanita", MediaType: models.MediaTypeImage, MaxFiles: 1},
+			{Key: "gallery_grid", Label: "Galeri Pre-Wedding", MediaType: models.MediaTypeImage, MaxFiles: 20},
+			{Key: "promo_video", Label: "Video Cerita Kami", MediaType: models.MediaTypeVideo, MaxFiles: 1},
+			{Key: "quote_bg", Label: "Latar Kutipan", MediaType: models.MediaTypeImage, MaxFiles: 1},
+		}),
+	},
 }

@@ -3,6 +3,7 @@ package seeder
 import (
 	"log"
 
+	"github.com/dhanuprys/momenu-backend-fiber/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -11,12 +12,15 @@ import (
 // in the database for the Project entity.
 func SyncThemes(db *gorm.DB) {
 	for _, theme := range ThemesData {
-		result := db.Where("id = ?", theme.ID).FirstOrCreate(&theme)
+		var existing models.Theme
+		result := db.Where("id = ?", theme.ID).First(&existing)
 		if result.Error != nil {
-			log.Printf("Failed to sync theme %s: %v", theme.ID, result.Error)
+			if err := db.Create(&theme).Error; err != nil {
+				log.Printf("Failed to create theme %s: %v", theme.ID, err)
+			}
 		} else {
 			// Update if it already exists, but DO NOT overwrite UI-managed fields
-			db.Model(&theme).Select("Name", "EventType", "MediaBuckets").Updates(theme)
+			db.Model(&existing).Select("Name", "EventType", "MediaBuckets").Updates(theme)
 		}
 	}
 	log.Println("Seeded themes successfully.")
