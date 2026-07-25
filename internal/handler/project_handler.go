@@ -182,6 +182,7 @@ type UpdateFeatureToggleRequest struct {
 	ShowGallery            bool `json:"show_gallery"`
 	ShowGifts              bool `json:"show_gifts"`
 	ShowLiveStream         bool `json:"show_live_stream"`
+	ShowJourneys           bool `json:"show_journeys"` // New field
 	RequireRegisteredGuest bool `json:"require_registered_guest"`
 }
 
@@ -203,6 +204,7 @@ func (h *ProjectHandler) UpdateFeatureToggle(c fiber.Ctx) error {
 	toggle.ShowGallery = req.ShowGallery
 	toggle.ShowGifts = req.ShowGifts
 	toggle.ShowLiveStream = req.ShowLiveStream
+	toggle.ShowJourneys = req.ShowJourneys
 	toggle.RequireRegisteredGuest = req.RequireRegisteredGuest
 
 	if err := h.projectService.UpdateFeatureToggle(toggle); err != nil {

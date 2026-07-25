@@ -38,6 +38,7 @@ type deps struct {
 	upload          *handler.UploadHandler
 	analytics       *handler.AnalyticsHandler
 	share           *handler.ShareHandler
+	journey         *handler.JourneyHandler
 	ownerMiddleware fiber.Handler
 }
 
@@ -57,6 +58,7 @@ func initDependencies() *deps {
 	musicRepo := repository.NewMusicRepository(database.DB)
 	analyticsRepo := repository.NewAnalyticsRepository(database.DB)
 	shareRepo := repository.NewShareRepository(database.DB)
+	journeyRepo := repository.NewJourneyRepository(database.DB)
 
 	// Services
 	userService := service.NewUserService(userRepo)
@@ -75,6 +77,7 @@ func initDependencies() *deps {
 	ipCheckerService := service.NewIPCheckerService()
 	analyticsService := service.NewAnalyticsService(analyticsRepo, projectRepo, ipCheckerService)
 	shareService := service.NewShareService(shareRepo, projectRepo, rsvpRepo, guestbookRepo, analyticsRepo)
+	journeyService := service.NewJourneyService(journeyRepo)
 
 	return &deps{
 		user:            handler.NewUserHandler(userService),
@@ -97,6 +100,7 @@ func initDependencies() *deps {
 		upload:          handler.NewUploadHandler(projectRepo, fileRepo, quotaSvc),
 		analytics:       handler.NewAnalyticsHandler(analyticsService),
 		share:           handler.NewShareHandler(shareService),
+		journey:         handler.NewJourneyHandler(journeyService),
 		ownerMiddleware: middleware.ProjectOwner(projectRepo),
 	}
 }
@@ -209,6 +213,12 @@ func registerProjectRoutes(api fiber.Router, d *deps) {
 	project.Post("/schedules", d.schedule.Create)
 	project.Put("/schedules/:scheduleId", d.schedule.Update)
 	project.Delete("/schedules/:scheduleId", d.schedule.Delete)
+
+	// Journeys
+	project.Get("/journeys", d.journey.List)
+	project.Post("/journeys", d.journey.Create)
+	project.Put("/journeys/:journeyId", d.journey.Update)
+	project.Delete("/journeys/:journeyId", d.journey.Delete)
 
 	// Gift Registries
 	project.Get("/gift-registries", d.giftRegistry.List)

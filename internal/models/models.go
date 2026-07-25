@@ -255,6 +255,7 @@ type Project struct {
 	MediaMappings    []MediaMapping `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"media_mappings"`
 	DressCodes       []DressCode     `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"dress_codes"`
 	LiveStreams      []LiveStream    `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"live_streams"`
+	Journeys         []Journey       `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"journeys"` // New field
 	RSVPs            []RSVP          `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"rsvps"`
 	Guestbooks       []Guestbook     `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"guestbooks"`
 	TextOverrides    []TextOverride  `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"text_overrides"`
@@ -270,14 +271,15 @@ type Project struct {
 
 // FeatureToggle - UI Switchboard
 type FeatureToggle struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	ProjectID      uuid.UUID `gorm:"type:uuid;uniqueIndex;not null" json:"project_id"`
-	ShowRSVP       bool `gorm:"default:true" json:"show_rsvp"`
+	ID                     uint      `gorm:"primaryKey" json:"id"`
+	ProjectID              uuid.UUID `gorm:"type:uuid;uniqueIndex;not null" json:"project_id"`
+	ShowRSVP               bool      `gorm:"default:true" json:"show_rsvp"`
 	ShowWishes             bool      `gorm:"default:true" json:"show_wishes"`
 	ShowGallery            bool      `gorm:"default:true" json:"show_gallery"`
 	ShowGifts              bool      `gorm:"default:true" json:"show_gifts"`
 	ShowLiveStream         bool      `gorm:"default:false" json:"show_live_stream"`
 	ShowMusic              bool      `gorm:"default:true" json:"show_music"`
+	ShowJourneys           bool      `gorm:"default:false" json:"show_journeys"` // New field
 	RequireRegisteredGuest bool      `gorm:"default:false" json:"require_registered_guest"`
 	WhatsappTemplate       string    `gorm:"type:text" json:"whatsapp_template"`
 }
@@ -290,6 +292,19 @@ func GetFieldSchema(eventType EventType) []FieldGroup {
 		return nil
 	}
 	return schema
+}
+
+// Journey - Chronological milestones
+type Journey struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	ProjectID uuid.UUID      `gorm:"type:uuid;not null;index" json:"project_id"`
+	Title     string         `gorm:"not null" json:"title"`
+	Date      string         `gorm:"not null" json:"date"`
+	Content   string         `gorm:"not null;type:text" json:"content"`
+	Order     int            `gorm:"default:0" json:"order"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // Schedule - Event Content & Timeline

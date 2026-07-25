@@ -36,6 +36,7 @@ func main() {
 		&models.Project{},
 		&models.FeatureToggle{},
 		&models.Schedule{},
+		&models.Journey{},
 		&models.GiftRegistry{},
 		&models.MediaMapping{},
 		&models.DressCode{},
