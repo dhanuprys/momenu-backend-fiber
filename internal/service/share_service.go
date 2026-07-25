@@ -16,6 +16,9 @@ type ShareService interface {
 	ListSessions(projectID uuid.UUID) ([]models.ProjectShareSession, error)
 	RevokeSession(sessionID string) error
 	GetSharedData(sessionID string) (*models.Project, map[string]interface{}, error)
+	AddGuest(sessionID string, name string, whatsapp *string) (*models.RSVP, error)
+	UpdateGuest(sessionID string, guestID uint, name string, whatsapp *string) (*models.RSVP, error)
+	DeleteGuest(sessionID string, guestID uint) error
 }
 
 type shareService struct {
@@ -142,4 +145,67 @@ func (s *shareService) GetSharedData(sessionID string) (*models.Project, map[str
 	}
 
 	return project, analyticsSummary, nil
+}
+
+func (s *shareService) AddGuest(sessionID string, name string, whatsapp *string) (*models.RSVP, error) {
+	session, err := s.shareRepo.GetSessionByID(sessionID)
+	if err != nil {
+		return nil, errors.New("session not found")
+	}
+
+	if session.IsRevoked {
+		return nil, errors.New("session is revoked")
+	}
+
+	if session.ExpiresAt != nil && time.Now().After(*session.ExpiresAt) {
+		return nil, errors.New("session is expired")
+	}
+
+	rsvp := &models.RSVP{
+		ProjectID:   session.ProjectID,
+		Name:        name,
+		Whatsapp:    whatsapp,
+		IsResponded: false,
+	}
+
+	if err := s.rsvpRepo.OwnerUpsert(rsvp); err != nil {
+		return nil, err
+	}
+
+	return rsvp, nil
+}
+
+func (s *shareService) UpdateGuest(sessionID string, guestID uint, name string, whatsapp *string) (*models.RSVP, error) {
+	session, err := s.shareRepo.GetSessionByID(sessionID)
+	if err != nil {
+		return nil, errors.New("session not found")
+	}
+
+	if session.IsRevoked || (session.ExpiresAt != nil && time.Now().After(*session.ExpiresAt)) {
+		return nil, errors.New("invalid session")
+	}
+
+	rsvp := &models.RSVP{
+		Name:     name,
+		Whatsapp: whatsapp,
+	}
+
+	if err := s.rsvpRepo.Update(session.ProjectID, guestID, rsvp); err != nil {
+		return nil, err
+	}
+
+	return rsvp, nil
+}
+
+func (s *shareService) DeleteGuest(sessionID string, guestID uint) error {
+	session, err := s.shareRepo.GetSessionByID(sessionID)
+	if err != nil {
+		return errors.New("session not found")
+	}
+
+	if session.IsRevoked || (session.ExpiresAt != nil && time.Now().After(*session.ExpiresAt)) {
+		return errors.New("invalid session")
+	}
+
+	return s.rsvpRepo.Delete(session.ProjectID, guestID)
 }

@@ -171,6 +171,9 @@ func registerPublicRoutes(api fiber.Router, d *deps) {
 	api.Get("/public/text-overrides/:slug", d.textOverride.GetBySlug)
 	api.Get("/public/style-overrides/:slug", d.styleOverride.GetBySlug)
 	api.Get("/public/share/:sessionId", d.share.GetSharedData)
+	api.Post("/public/share/:sessionId/guests", d.share.AddGuest)
+	api.Put("/public/share/:sessionId/guests/:id", d.share.UpdateGuest)
+	api.Delete("/public/share/:sessionId/guests/:id", d.share.DeleteGuest)
 
 	// Analytics (public visit tracking)
 	inviteLimiter := newInviteLimiter()

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/dhanuprys/momenu-backend-fiber/internal/service"
@@ -83,4 +84,71 @@ func (h *ShareHandler) GetSharedData(c fiber.Ctx) error {
 		"project":   project,
 		"analytics": analytics,
 	}, nil)
+}
+
+type ShareAddGuestRequest struct {
+	Name     string  `json:"name" validate:"required"`
+	Whatsapp *string `json:"whatsapp"`
+}
+
+func (h *ShareHandler) AddGuest(c fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+
+	var req ShareAddGuestRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
+	}
+
+	if req.Name == "" {
+		return response.JSONError(c, fiber.StatusBadRequest, "Name is required", "BAD_REQUEST")
+	}
+
+	rsvp, err := h.shareService.AddGuest(sessionID, req.Name, req.Whatsapp)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to add guest", "INTERNAL_SERVER_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusCreated, "Guest added successfully", rsvp, nil)
+}
+
+func (h *ShareHandler) UpdateGuest(c fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+	idParam := c.Params("id")
+
+	guestID, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid guest ID", "BAD_REQUEST")
+	}
+
+	var req ShareAddGuestRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
+	}
+
+	if req.Name == "" {
+		return response.JSONError(c, fiber.StatusBadRequest, "Name is required", "BAD_REQUEST")
+	}
+
+	rsvp, err := h.shareService.UpdateGuest(sessionID, uint(guestID), req.Name, req.Whatsapp)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to update guest", "INTERNAL_SERVER_ERROR")
+	}
+
+	return response.JSONSuccess(c, fiber.StatusOK, "Guest updated successfully", rsvp, nil)
+}
+
+func (h *ShareHandler) DeleteGuest(c fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+	idParam := c.Params("id")
+
+	guestID, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		return response.JSONError(c, fiber.StatusBadRequest, "Invalid guest ID", "BAD_REQUEST")
+	}
+
+	if err := h.shareService.DeleteGuest(sessionID, uint(guestID)); err != nil {
+		return response.JSONError(c, fiber.StatusInternalServerError, "Failed to delete guest", "INTERNAL_SERVER_ERROR")
+	}
+
+	return response.JSONSuccess[any](c, fiber.StatusOK, "Guest deleted successfully", nil, nil)
 }
