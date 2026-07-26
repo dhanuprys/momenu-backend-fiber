@@ -235,6 +235,12 @@ type Music struct {
 	UpdatedAt       time.Time     `json:"updated_at"`
 }
 
+// ProjectMusicConfig - Per-project music settings
+type ProjectMusicConfig struct {
+	StartTime *int `json:"start_time"`
+	EndTime   *int `json:"end_time"`
+}
+
 // Project - Core Project Architecture
 type Project struct {
 	ID               uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
@@ -244,6 +250,7 @@ type Project struct {
 	Theme            Theme          `gorm:"foreignKey:ThemeID" json:"theme,omitempty"`
 	MusicID          *uint          `json:"music_id"`
 	Music            Music          `gorm:"foreignKey:MusicID;constraint:OnDelete:SET NULL;" json:"music,omitempty"`
+	MusicConfig      datatypes.JSON `json:"music_config"`
 	EventType        EventType      `gorm:"not null" json:"event_type"` // strongly-typed event type
 	Status           ProjectStatus  `gorm:"default:'draft'" json:"status"`
 	Slug             string         `gorm:"uniqueIndex;not null" json:"slug"`

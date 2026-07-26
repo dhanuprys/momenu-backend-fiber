@@ -15,11 +15,11 @@ import (
 )
 
 type ProjectService interface {
-	CreateProject(userID uint, title string, themeID string, musicID *uint, payload json.RawMessage) (*models.Project, []response.ValidationError, error)
+	CreateProject(userID uint, title string, themeID string, musicID *uint, musicConfig json.RawMessage, payload json.RawMessage) (*models.Project, []response.ValidationError, error)
 	GetProjectsByUserID(userID uint, page, limit int, status string) ([]models.Project, int64, error)
 	GetProjectByID(id uuid.UUID) (*models.Project, error)
 	GetProjectBySlug(slug string) (*models.Project, error)
-	UpdateProject(projectID uuid.UUID, title string, slug string, payload json.RawMessage, sharingThumbnail string, musicID *uint) (*models.Project, []response.ValidationError, error)
+	UpdateProject(projectID uuid.UUID, title string, slug string, payload json.RawMessage, sharingThumbnail string, musicID *uint, musicConfig json.RawMessage) (*models.Project, []response.ValidationError, error)
 	UpdateStatus(projectID uuid.UUID, status models.ProjectStatus, userID uint) (*models.Project, error)
 	DeleteProject(id uuid.UUID) error
 	GetFeatureToggle(projectID uuid.UUID) (*models.FeatureToggle, error)
@@ -40,7 +40,7 @@ func NewProjectService(projectRepo repository.ProjectRepository, themeRepo repos
 	}
 }
 
-func (s *projectService) CreateProject(userID uint, title string, themeID string, musicID *uint, payload json.RawMessage) (*models.Project, []response.ValidationError, error) {
+func (s *projectService) CreateProject(userID uint, title string, themeID string, musicID *uint, musicConfig json.RawMessage, payload json.RawMessage) (*models.Project, []response.ValidationError, error) {
 	// 1. Validate Theme exists
 	theme, err := s.themeRepo.GetThemeByID(themeID)
 	if err != nil {
@@ -79,6 +79,7 @@ func (s *projectService) CreateProject(userID uint, title string, themeID string
 		Status:         models.ProjectStatusDraft,
 		Slug:           utils.GenerateSlug(title),
 		MusicID:        musicID,
+		MusicConfig:    datatypes.JSON(musicConfig),
 		Payload:        datatypes.JSON(payload),
 		DiskQuotaBytes: config.AppConfig.DefaultProjectDiskQuotaMB * 1024 * 1024,
 	}
@@ -132,7 +133,7 @@ func (s *projectService) GetProjectBySlug(slug string) (*models.Project, error) 
 	return project, nil
 }
 
-func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug string, payload json.RawMessage, sharingThumbnail string, musicID *uint) (*models.Project, []response.ValidationError, error) {
+func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug string, payload json.RawMessage, sharingThumbnail string, musicID *uint, musicConfig json.RawMessage) (*models.Project, []response.ValidationError, error) {
 	project, err := s.projectRepo.GetProjectByID(projectID)
 	if err != nil {
 		return nil, nil, err
@@ -203,6 +204,9 @@ func (s *projectService) UpdateProject(projectID uuid.UUID, title string, slug s
 	}
 
 	project.MusicID = musicID
+	if musicConfig != nil {
+		project.MusicConfig = datatypes.JSON(musicConfig)
+	}
 
 	if err := s.projectRepo.UpdateProject(project); err != nil {
 		return nil, nil, err

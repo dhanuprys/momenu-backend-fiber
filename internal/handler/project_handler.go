@@ -20,9 +20,10 @@ func NewProjectHandler(projectService service.ProjectService) *ProjectHandler {
 
 type CreateProjectRequest struct {
 	Title   string          `json:"title" validate:"required,min=3"`
-	ThemeID string          `json:"theme_id" validate:"required"`
-	MusicID *uint           `json:"music_id"`
-	Payload json.RawMessage `json:"payload"`
+	ThemeID     string          `json:"theme_id" validate:"required"`
+	MusicID     *uint           `json:"music_id"`
+	MusicConfig json.RawMessage `json:"music_config"`
+	Payload     json.RawMessage `json:"payload"`
 }
 
 type UpdateProjectRequest struct {
@@ -31,6 +32,7 @@ type UpdateProjectRequest struct {
 	Payload          json.RawMessage `json:"payload"`
 	SharingThumbnail string          `json:"sharing_thumbnail"`
 	MusicID          *uint           `json:"music_id"`
+	MusicConfig      json.RawMessage `json:"music_config"`
 }
 
 type UpdateProjectStatusRequest struct {
@@ -45,7 +47,7 @@ func (h *ProjectHandler) Create(c fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(uint)
 
-	project, validationErrs, err := h.projectService.CreateProject(userID, req.Title, req.ThemeID, req.MusicID, req.Payload)
+	project, validationErrs, err := h.projectService.CreateProject(userID, req.Title, req.ThemeID, req.MusicID, req.MusicConfig, req.Payload)
 	if err != nil {
 		if err.Error() == "validation failed" {
 			return response.JSONValidationError(c, validationErrs)
@@ -118,7 +120,7 @@ func (h *ProjectHandler) Update(c fiber.Ctx) error {
 		return response.JSONError(c, fiber.StatusBadRequest, "Invalid request payload", "INVALID_PAYLOAD")
 	}
 
-	updatedProject, validationErrs, err := h.projectService.UpdateProject(project.ID, req.Title, req.Slug, req.Payload, req.SharingThumbnail, req.MusicID)
+	updatedProject, validationErrs, err := h.projectService.UpdateProject(project.ID, req.Title, req.Slug, req.Payload, req.SharingThumbnail, req.MusicID, req.MusicConfig)
 	if err != nil {
 		if err.Error() == "validation failed" {
 			return response.JSONValidationError(c, validationErrs)
